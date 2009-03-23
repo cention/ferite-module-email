@@ -1,0 +1,269 @@
+uses "MailUtilities.feh";
+uses "/cention/etc/webframework-config.feh";
+uses "webframework/webframework";
+uses "objrunsrv-workflow.feh";
+
+uses 'cmail';
+uses 'console';
+uses 'date';
+uses 'filesystem';
+uses 'math';
+uses 'ObjRunSrv';
+uses 'objrunsrv-workflow';
+uses 'workflow';
+uses 'posix';
+uses 'regexp';
+uses 'sys';
+	
+
+
+namespace CampaignDelivery {
+
+	function isExpired(number start,number end){
+		number today = Date.GMTnow();
+		if(today >= start and today <= end)
+			return 0;
+		else return 1;
+		
+	}
+
+	function randomArrayElement( array A ) {
+	
+		number lv;
+		number random1,random2;
+		void tmp; //type void used to make it generic
+	
+		for ( lv=0; lv< Array.size(A); lv ++ ) {
+	
+			random1 = Math.randomNumber(0,Array.size(A)-1);
+			random1 = Math.randomNumber(0,Array.size(A)-1);
+	
+			tmp = A[random2];
+			A[random2] = A[random1];
+			A[random1] = tmp;			
+		}
+		return A;
+	}
+	
+
+	function handleCampaign ( /*object  start , object end */ ) {
+
+		array camOb;
+		object ob;		
+		camOb = Workflow.Campaign.completeList();
+		return CampaignDelivery.SendEmailFromCampaign( camOb );
+
+	}
+
+
+
+	
+
+
+	function getAvailableAddress ( object c ) {
+
+		array avlAdr=[];
+
+			if ( c.progress == 0 )  
+				avlAdr = c.emailList;
+			else if ( c.progress > 0 and c.progress < 100 ) {
+				avlAdr = c.report.unsendEmailAddress;
+			}
+		
+		return avlAdr;
+
+	}
+
+	function isReadyToSend( object c ){
+
+		
+		Console.println ( c.activated );
+		Console.println ( c.progress );
+		Console.println ( c.emailList.size() );
+
+		if ( ( c.activated ) and ( c.progress != 100 ) and ( c.emailList.size() > 0 )  and ( not .isExpired( c.startDate,c.endDate ) ) ) 	
+			return true;
+		return false;
+	}
+
+	function updateReport( object c , array successful, array unsuccessful) {
+
+		object report;
+		number progress;
+
+		report = ((c.report) ? c.report : (new Workflow.CampaignReport()));
+		successful = successful.append(report.sentEmailAddress);
+
+		progress = (((successful.size() * 1.0) / c.emailList.size()) * 100).round();
+		//Console.println(""+successful.size() +"/"+ totalAddress +"*" +"100");
+		//Console.println("progress is: "+progress);
+		report.setValue( 'sentEmailAddress', successful );
+		report.setValue( 'unsendEmailAddress',unsuccessful );
+		report.setValue('emailNotSent',c.emailList.size()-successful.size());
+		report.setValue('emailSent',successful.size());
+
+		c.setValue( 'report',report );
+		c.setValue('progress',progress);
+		c.save();
+
+
+	}
+
+	function mailPerMintue(){
+
+	
+		 return webframework.Config.byName('MailSentPerMinute')[0].value ;
+
+	}
+
+
+
+	function trySendMail(object c,array addressToSend, array sucessfulSend, array unSuccessfulSend) {
+
+		string message =  c.email.textBody+""+c.email.htmlBody;
+		object emailTarget;
+		object campaignEmailTarget;
+
+		number limit,start;		
+		number sendCount= 0;
+		number size = addressToSend.size();
+		number idx=0;
+		object addr;
+		array tmp;
+		limit = CampaignDelivery.mailPerMintue().toNumber();
+		start = 0;		
+		
+
+		monitor
+		{
+		
+			while ( idx < size ){		
+	
+				sendCount = 0;	
+				start = Date.GMTnow();		
+				while( (start + 60) > Date.GMTnow() and sendCount < limit ) {		
+	
+					addr = addressToSend[idx];							
+					monitor{
+					emailTarget = Workflow.EmailTarget.createByAddress(addr.emailAddress,c);		
+					campaignEmailTarget = new Workflow.CampaignEmailTarget();		
+					campaignEmailTarget.setValue('target',emailTarget);
+					campaignEmailTarget.setValue('campaign',c);	
+					
+					}
+
+					handle{
+						Console.println ( err.str + "flag1" );
+					}
+
+					
+					Console.println ( "---------" + c.email.subject );
+								
+					if ( not MailUtilities.sendMail ( c.email.subject,  addr.emailAddress, c.email.from.emailAddress, "Cention Contact Center",c.email.textVersion,message) ){ //sent not successful
+
+							unSuccessfulSend[] = addr;							
+							campaignEmailTarget.setValue('successful',false);
+							campaignEmailTarget.save();					
+							Console.println("not successful");	
+					
+					}
+					else {
+		
+							sucessfulSend[] = addr;
+							campaignEmailTarget.setValue('successful',true);
+							campaignEmailTarget.save();
+							Console.println(" Mail successfuly sent to addr " + addr.emailAddress);
+					}
+					
+	
+					sendCount ++;
+					idx ++;
+					if ( idx >= size ) break; 
+	
+		
+				}
+	
+				if( (start + 60) > Date.GMTnow() ) {
+					Sys.sleep((start + 60) - Date.GMTnow());
+		
+				}
+	
+			}
+
+		}
+		handle{		
+		
+			Console.println(  err.str );
+
+		}
+
+		tmp[] = sucessfulSend;
+		tmp[] = unSuccessfulSend;
+
+		return [sucessfulSend,unSuccessfulSend];
+		return tmp;
+							
+
+	}
+	
+
+	function walkCampaign( object c ) {
+
+		array addressToSend=[];
+		array sucessfulSend=[],unSuccessfulSend=[];
+		array tmp;
+
+
+		Console.println( "inside walkCampaign method" );
+		
+
+		if ( CampaignDelivery.isReadyToSend(c) ) {
+
+			
+			
+			addressToSend = CampaignDelivery.getAvailableAddress(c);
+			addressToSend = CampaignDelivery.randomArrayElement(addressToSend);
+
+			//Console.println ( addressToSend );
+
+			Console.println ( "Attempting to send mail");
+
+			tmp = .trySendMail(c,addressToSend,sucessfulSend,unSuccessfulSend);
+
+			sucessfulSend = tmp[0];
+			unSuccessfulSend = tmp[1];
+
+
+			Console.println ( "Attemping to update report");
+
+			.updateReport(c,sucessfulSend,unSuccessfulSend);
+
+		}
+		else {
+			Console.println ("Not ready");
+
+		}
+		
+
+	
+
+	}
+
+
+
+	function SendEmailFromCampaign ( array camList ) {		
+
+		camList.size() == 0 and Console.println (" NO Campaign available to start with ");
+
+		camList.size() > 0 and camList.each() using ( c ) {
+	
+			CampaignDelivery.walkCampaign(c);
+	
+		};
+
+
+	}
+}
+
+
+  
