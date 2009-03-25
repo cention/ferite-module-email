@@ -77,9 +77,9 @@ namespace CampaignDelivery {
 	function isReadyToSend( object c ){
 
 		
-		Console.println ( c.activated );
-		Console.println ( c.progress );
-		Console.println ( c.emailList.size() );
+		Console.println ( "[activated: " +  c.activated + "]");
+		Console.println ( "[progress: ${c.progress}]" );
+		Console.println ( "[available address : ${c.emailList.size()}]" );
 
 		if ( ( c.activated ) and ( c.progress != 100 ) and ( c.emailList.size() > 0 )  and ( not .isExpired( c.startDate,c.endDate ) ) ) 	
 			return true;
@@ -157,7 +157,7 @@ namespace CampaignDelivery {
 					}
 
 					
-					Console.println ( "---------" + c.email.subject );
+					
 								
 					if ( not MailUtilities.sendMail ( c.email.subject,  addr.emailAddress, c.email.from.emailAddress, "Cention Contact Center",c.email.textVersion,message) ){ //sent not successful
 
@@ -214,7 +214,7 @@ namespace CampaignDelivery {
 		array tmp;
 
 
-		Console.println( "inside walkCampaign method" );
+		Console.println( "[Processing Campaign :" + c.name + "]" );
 		
 
 		if ( CampaignDelivery.isReadyToSend(c) ) {
@@ -226,7 +226,7 @@ namespace CampaignDelivery {
 
 			//Console.println ( addressToSend );
 
-			Console.println ( "Attempting to send mail");
+			//Console.println ( "Attempting to send mail");
 
 			tmp = .trySendMail(c,addressToSend,sucessfulSend,unSuccessfulSend);
 
@@ -234,13 +234,13 @@ namespace CampaignDelivery {
 			unSuccessfulSend = tmp[1];
 
 
-			Console.println ( "Attemping to update report");
+			Console.println ( "[updating report]");
 
 			.updateReport(c,sucessfulSend,unSuccessfulSend);
 
 		}
 		else {
-			Console.println ("Not ready");
+			Console.println ("[ Campaign ${c.name} is  Not ready]");
 
 		}
 		
@@ -253,10 +253,13 @@ namespace CampaignDelivery {
 
 	function SendEmailFromCampaign ( array camList ) {		
 
+		
+
 		camList.size() == 0 and Console.println (" NO Campaign available to start with ");
 
 		camList.size() > 0 and camList.each() using ( c ) {
 	
+			Console.println ( "[=====================================]");
 			CampaignDelivery.walkCampaign(c);
 	
 		};
@@ -266,4 +269,3 @@ namespace CampaignDelivery {
 }
 
 
-  
