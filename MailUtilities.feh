@@ -66,8 +66,13 @@ namespace MailUtilities{
 	
 		smtpHost = MailUtilities.selectMailServer();	
 		
-		if( connection.sendMessage( smtpHost, message ) )
+		// Workaround for uw-imap bug
+		if( connection.sendMessage( smtpHost, message ) ) {
 			return true;
+		}
+		if( connection.sendMessage( smtpHost + '/smtp/novalidate-cert', message ) ) {
+			return true;
+		}
 		
 		try ++;
 		return MailUtilities.sendMessage( connection,message );
