@@ -107,7 +107,7 @@ namespace MailUtilities{
 			
 			content.subtype = "alternative";
 			content.addPart(text_content);
-			content.addPart(html_content);
+			if ( html ) content.addPart(html_content);
 			
 			return content;
 		}
