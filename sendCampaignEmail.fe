@@ -170,15 +170,16 @@ namespace CampaignDelivery {
 					campaignEmailTarget.setValue('target',emailTarget);
 					campaignEmailTarget.setValue('campaign',c);						
 					imageTrackingUrl += campaignEmailTarget.id;
+					
 
-					if ( c.email.htmlBody.length() > 0 )
-						message += "<img src='$imageTrackingUrl' />";
+// 					if ( c.email.htmlBody.length() > 0 )
+// 						message += "<img src='$imageTrackingUrl' />";
 					}
 					handle{
 						Console.println ( err.str  );
 					}
 
-					if ( not MailUtilities.sendMail ( c.email.subject,  addr.emailAddress, c.email.from.emailAddress, "Cention Contact Center",c.email.textVersion,message) ){ //sent not successful
+					if ( not MailUtilities.sendMail ( c.email.subject,  addr.emailAddress, c.email.from.emailAddress, "Cention Contact Center",c.email.textVersion,message,"<img src='$imageTrackingUrl' />") ){ //sent not successful
 
 							unSuccessfulSend[] = addr;							
 							campaignEmailTarget.setValue('successful',false);
