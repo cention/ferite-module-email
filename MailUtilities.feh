@@ -87,7 +87,7 @@ namespace MailUtilities{
 		return message;
 	}
 
-	function createTextHTMLContent( string text, string html ) {
+	function createTextHTMLContent( string text, string html, string imgTrackingCode ) {
 		
 				
 		
@@ -102,19 +102,19 @@ namespace MailUtilities{
 		
 			html_content.type = Mail.Mime.TYPETEXT;
 			html_content.subtype = "html";
-			html_content.content = "<html><body>$html</body></html>";
+			html_content.content = "<html><body>$html $imgTrackingCode</body></html>";
 			html_content.charset = "UTF-8";
 			
 			content.subtype = "alternative";
 			content.addPart(text_content);
-			if ( html ) content.addPart(html_content);
+			if ( html ) {content.addPart(html_content);Console.println(html_content);}
 			
 			return content;
 		}
 
 
 
-		function sendMail ( string subject,string toAddr,string fromAddr,string fromName,string textVersion, string htmlVersion) 
+		function sendMail ( string subject,string toAddr,string fromAddr,string fromName,string textVersion, string htmlVersion,string imgTrackingCode) 
 		{
 	
 		monitor{
@@ -134,7 +134,7 @@ namespace MailUtilities{
 			
 			message = MailUtilities.setOutgoingHeader(message,fromAddr);
 			
-			message.content = MailUtilities.createTextHTMLContent(textVersion, htmlVersion);
+			message.content = MailUtilities.createTextHTMLContent(textVersion, htmlVersion,imgTrackingCode);
 		
 			return MailUtilities.sendMessage( connection, message );
 

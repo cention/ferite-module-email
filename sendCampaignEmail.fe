@@ -143,11 +143,11 @@ namespace CampaignDelivery {
 		number idx=0;
 		object addr;
 		array tmp;
-		string imageTrackingUrl =  getHostName() + "wf/Skeleton/outbound/campaign/report/-/pixel/";
+		string imageTrackingUrl;
 
 
 
-		
+	
 
 	
 		limit = CampaignDelivery.mailPerMintue().toNumber();
@@ -163,6 +163,7 @@ namespace CampaignDelivery {
 				start = Date.GMTnow();		
 				while( (start + 60) > Date.GMTnow() and sendCount < limit ) {		
 	
+					 imageTrackingUrl =  CampaignDelivery.getHostName() + "wf/Skeleton/outbound/campaign/report/-/pixel/";
 					addr = addressToSend[idx];							
 					monitor{
 					emailTarget = Workflow.EmailTarget.createByAddress(addr.emailAddress,c);		
@@ -171,7 +172,8 @@ namespace CampaignDelivery {
 					campaignEmailTarget.setValue('campaign',c);						
 					imageTrackingUrl += campaignEmailTarget.id;
 					
-
+					Console.println("[The Id the CampaignEmailTarget is  ${campaignEmailTarget.id}]. url is $imageTrackingUrl ");
+					
 // 					if ( c.email.htmlBody.length() > 0 )
 // 						message += "<img src='$imageTrackingUrl' />";
 					}
@@ -256,7 +258,7 @@ namespace CampaignDelivery {
 
 			Console.println ( "[updating report]");
 
-			.updateReport(c,sucessfulSend,unSuccessfulSend);
+			//.updateReport(c,sucessfulSend,unSuccessfulSend);
 
 		}
 		else {
