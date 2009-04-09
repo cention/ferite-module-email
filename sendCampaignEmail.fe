@@ -171,12 +171,10 @@ namespace CampaignDelivery {
 					campaignEmailTarget.setValue('target',emailTarget);
 					campaignEmailTarget.setValue('campaign',c);						
 					imageTrackingUrl += campaignEmailTarget.id;
-					imageTrackingUrl += ".gif";
+					//imageTrackingUrl += ".gif";
 					
-					Console.println("[The Id the CampaignEmailTarget is  ${campaignEmailTarget.id}]. url is $imageTrackingUrl ");
 					
-// 					if ( c.email.htmlBody.length() > 0 )
-// 						message += "<img src='$imageTrackingUrl' />";
+					
 					}
 					handle{
 						Console.println ( err.str  );
