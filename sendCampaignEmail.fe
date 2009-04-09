@@ -257,7 +257,7 @@ namespace CampaignDelivery {
 
 			Console.println ( "[updating report]");
 
-			//.updateReport(c,sucessfulSend,unSuccessfulSend);
+			.updateReport(c,sucessfulSend,unSuccessfulSend);
 
 		}
 		else {
