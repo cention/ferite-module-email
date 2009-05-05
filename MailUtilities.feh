@@ -44,7 +44,7 @@ namespace MailUtilities{
 	**/
 
 	function sendMessage( object connection, object message )
-		return .sendMessage( connection, message, try );
+		return .sendMessage( connection, message, 0 );
 		
 	function sendMessage( object connection, object message, number try ) {
 		string smtpHost = '';
