@@ -5,52 +5,37 @@ uses 'console';
 uses 'math';
 
 global {	
-	
 	number failSafeTry = 3;
-	number try=0;
 }
 
 
 namespace MailUtilities{
-
 
 	/**
 		This function select a random server from the  list of servers available in webframework.config 
 
 	**/
 	 function selectMailServer(){
-
 		monitor{	
-		
-		array servers;
-		number rs = Math.randomNumber( 0,servers.size() ); //
-
-		webframework.Config.byName('Outbound.Mailserver.*').each() using ( s  ) {
-
+			array servers;
+			number rs = Math.randomNumber( 0,servers.size() ); //
+			webframework.Config.byName('Outbound.Mailserver.*').each() using ( s  ) {
 				servers[] = s.value;
-		};		
-		return servers[rs];
+			};		
+			return servers[rs];
 		}
-
 		handle{			
 			Console.println(  err.str );
 		}
-
 	}
 
-
 	function failSafeTry(){
-
 		monitor{
 			return webframework.Config.byName('FailSafeTry')[0].value.toNumber();
 		}
 		handle{
-
 			return failSafeTry;
-
 		}
-	
-
 	}
 
 	/**
@@ -58,11 +43,14 @@ namespace MailUtilities{
 
 	**/
 
-	 function sendMessage( object connection, object message ) {
+	function sendMessage( object connection, object message )
+		return .sendMessage( connection, message, try );
+		
+	function sendMessage( object connection, object message, number try ) {
+		string smtpHost = '';
 
-		string smtpHost;
-
-		if ( try > MailUtilities.failSafeTry() ) return false;
+		if ( try > MailUtilities.failSafeTry() ) 
+			return false;
 	
 		smtpHost = MailUtilities.selectMailServer();	
 		
@@ -75,12 +63,10 @@ namespace MailUtilities{
 		}
 		
 		try ++;
-		return MailUtilities.sendMessage( connection,message );
-
+		return MailUtilities.sendMessage( connection, message, try );
 	}
 
 	function setOutgoingHeader( object message ,string ReturnPath) {
-
 		message.setOutgoingHeader( 'Return-Path', ReturnPath );
 		message.setOutgoingHeader( 'User-Agent', "Ferite Cmail-module (www.ferite.org)" );
 		message.setOutgoingHeader( 'X-Mailer', "CentionContactCenter/3.0 (www.cention.se)" );
@@ -88,35 +74,28 @@ namespace MailUtilities{
 	}
 
 	function createTextHTMLContent( string text, string html, string imgTrackingCode ) {
+		object content = new Mail.MessageMultiPart();
+		object text_content = new Mail.MessagePart();
+		object html_content = new Mail.MessagePart();
 		
-				
-		
-			object content = new Mail.MessageMultiPart();
-			object text_content = new Mail.MessagePart();
-			object html_content = new Mail.MessagePart();
-			
-			text_content.type = Mail.Mime.TYPETEXT;
-			text_content.subtype = "plain";
-			text_content.content = text;
-			text_content.charset = "UTF-8";
-		
-			html_content.type = Mail.Mime.TYPETEXT;
-			html_content.subtype = "html";
-			html_content.content = "<html><body>$html $imgTrackingCode</body></html>";
-			html_content.charset = "UTF-8";
-			
-			content.subtype = "alternative";
-			content.addPart(text_content);
-			if ( html ) {content.addPart(html_content);}
-			
-			return content;
-		}
-
-
-
-		function sendMail ( string subject,string toAddr,string fromAddr,string fromName,string textVersion, string htmlVersion,string imgTrackingCode) 
-		{
+		text_content.type = Mail.Mime.TYPETEXT;
+		text_content.subtype = "plain";
+		text_content.content = text;
+		text_content.charset = "UTF-8";
 	
+		html_content.type = Mail.Mime.TYPETEXT;
+		html_content.subtype = "html";
+		html_content.content = "<html><body>$html $imgTrackingCode</body></html>";
+		html_content.charset = "UTF-8";
+		
+		content.subtype = "alternative";
+		content.addPart(text_content);
+		if ( html ) {content.addPart(html_content);}
+		
+		return content;
+	}
+
+	function sendMail ( string subject,string toAddr,string fromAddr,string fromName,string textVersion, string htmlVersion,string imgTrackingCode) {
 		monitor{
 			object message = new Mail.Message();
 			object connection = new Mail.Connection();
@@ -139,16 +118,11 @@ namespace MailUtilities{
 			return MailUtilities.sendMessage( connection, message );
 
 			}
-			handle{
-				
-				Console.println ( "error sending mail" + err.str );
-				return false;
-
-			}
+		handle{
+			Console.println ( "error sending mail" + err.str );
+			return false;
 		}
-
-
-	
+	}
 }
 
 
