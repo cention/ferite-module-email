@@ -149,7 +149,7 @@ namespace CampaignDelivery {
 
 		if ( c.email.onlineVersion ) {
 
-			Console.println("have online version");
+			//Console.println("have online version");
 		
 			message +=  "<a href=\"email/preview/-/${c.email.id}\"> Show Online Version of this email.>";
 
