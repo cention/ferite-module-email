@@ -149,9 +149,11 @@ namespace CampaignDelivery {
 
 		if ( c.email.onlineVersion ) {
 
-			
+			string uri = CampaignDelivery.getHostName() + "wf/Skeleton/outbound/email/preview/";
 		
-			message +=  "<a href=\"email/preview/-/${c.email.id}\"> Show Online Version of this email.</a>";
+			message +=  "<a href=\"$uri-/${c.email.id}\"> Show Online Version of this email.</a>";
+
+			
 
 			
 		}
@@ -266,7 +268,7 @@ namespace CampaignDelivery {
 
 			Console.println ( "[updating report]");
 
-			.updateReport(c,sucessfulSend,unSuccessfulSend);
+			//.updateReport(c,sucessfulSend,unSuccessfulSend);
 
 		}
 		else {
