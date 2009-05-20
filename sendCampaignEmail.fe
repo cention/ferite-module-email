@@ -148,9 +148,15 @@ namespace CampaignDelivery {
 
 
 		if ( c.email.onlineVersion ) {
+
+			Console.println("have online version");
 		
-			message +=  "<a href=\"email/preview/-/+${c.email.id}\"> Show Online Version of this email.>";
+			message +=  "<a href=\"email/preview/-/${c.email.id}\"> Show Online Version of this email.>";
+
+			Console.println(message);
 		}
+
+
 
 	
 		limit = CampaignDelivery.mailPerMintue().toNumber();
