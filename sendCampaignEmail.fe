@@ -175,7 +175,7 @@ namespace CampaignDelivery {
 				start = Date.GMTnow();		
 				while( (start + 60) > Date.GMTnow() and sendCount < limit ) {		
 	
-					 imageTrackingUrl =  CampaignDelivery.getHostName() + "wf/Skeleton/outbound/campaign/report/-/pixel/";
+					 imageTrackingUrl =  CampaignDelivery.getHostName() + "wf/Skeleton/outbound/campaign/history/-/pixel/";
 					addr = addressToSend[idx];							
 					monitor{
 					emailTarget = Workflow.EmailTarget.createByAddress(addr.emailAddress,c);		
@@ -274,7 +274,7 @@ namespace CampaignDelivery {
 
 			Console.println ( "[updating report]");
 
-			//.updateReport(c,sucessfulSend,unSuccessfulSend);
+			.updateReport(c,sucessfulSend,unSuccessfulSend);
 
 		}
 		else {
