@@ -143,7 +143,8 @@ namespace CampaignDelivery {
 		number idx=0;
 		object addr;
 		array tmp;
-		string imageTrackingUrl;
+		string imageTrackingUrl="";
+		string imageTrackingCode="";
 
 
 
@@ -183,6 +184,11 @@ namespace CampaignDelivery {
 					campaignEmailTarget.setValue('campaign',c);						
 					imageTrackingUrl += campaignEmailTarget.id;
 					//imageTrackingUrl += ".gif";
+
+					if ( c.imageTracking ) 
+						imageTrackingCode = "<img src='$imageTrackingUrl' />";
+					else
+						imageTrackingCode = "";
 					
 					
 					
@@ -191,12 +197,12 @@ namespace CampaignDelivery {
 						Console.println ( err.str  );
 					}
 
-					if ( not MailUtilities.sendMail ( c.email.subject,  addr.emailAddress, c.email.from.emailAddress, "Cention Contact Center",c.email.textVersion,message,"<img src='$imageTrackingUrl' />") ){ //sent not successful
+					if ( not MailUtilities.sendMail ( c.email.subject,  addr.emailAddress, c.email.from.emailAddress, "Cention Contact Center",c.email.textVersion,message,imageTrackingCode ) ){ //sent not successful
 
-							unSuccessfulSend[] = addr;							
+							unSuccessfulSend[] = addr;
 							campaignEmailTarget.setValue('successful',false);
-							campaignEmailTarget.save();					
-							Console.println("not successful");	
+							campaignEmailTarget.save();
+							Console.println("not successful");
 					
 					}
 					else {
