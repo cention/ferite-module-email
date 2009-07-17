@@ -1,10 +1,16 @@
 <?xml version="1.0" ?>
 <yard name="cention_email">
 
-	<phase id="install">
-		<copy file="MailUtilities.feh" target="$(FeriteModuleSourceDir)" />
-		<copy file="sendCampaignEmail.fe" target="$(FeriteModuleSourceDir)" />
-	</phase>
+	<property id="name" value="cention-email-support" />
+	<property id="version" value="3.0" />
+	
+	<collection id="email-support">
+		<property type="prefix" value="$(FeriteModuleSourceDir)" />  
 
+		<list type="source">
+			<file name="MailUtilities.feh" />
+			<file name="sendCampaignEmail.fe" />
+		</list>
+	</collection>
 </yard>
 
