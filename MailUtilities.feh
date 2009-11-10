@@ -18,15 +18,10 @@ namespace MailUtilities{
 	 function selectMailServer(){
 		monitor{	
 			array servers;
-			number rs;
-								
+			number rs = Math.randomNumber( 0,servers.size() ); //
 			webframework.Config.byName('Outbound.Mailserver.*').each() using ( s  ) {
 				servers[] = s.value;
-				
-			};
-
-			rs=Math.randomNumber(0,Array.size(servers)-1);
-					
+			};		
 			return servers[rs];
 		}
 		handle{			
@@ -44,72 +39,31 @@ namespace MailUtilities{
 	}
 
 	/**
-		checkSmtpHost function finds where host exists or not.
+		sendMessage which tries to send message. It tries failSafeTry number of attempts.
 
 	**/
 
-	function checkSmtpHost(number try) {
-
-		string smtpHost="";
-				
-		if(try >= MailUtilities.failSafeTry())
-			return false;
-
-		smtpHost=self.selectMailServer();
-		
-		if (( try < MailUtilities.failSafeTry()) && (Network.getHostByName(smtpHost,0)!=null)) { 
-			return smtpHost;
-
-		}
-		else {
-
-			try ++;
-			return MailUtilities.checkSmtpHost(try );
-
-
-		}	  
-		
-	}
-
-      /*
-
-	sendMessage function checks whether connection fail or not. if connection is ok , then send the message.
-
-      */
-	function sendMessage( object connection, object message ){
-		Console.println("Hello in send ");
+	function sendMessage( object connection, object message )
 		return .sendMessage( connection, message, 0 );
-		}
-
+		
 	function sendMessage( object connection, object message, number try ) {
+		string smtpHost = '';
+
+		if ( try > MailUtilities.failSafeTry() ) 
+			return false;
+	
+		smtpHost = MailUtilities.selectMailServer();	
 		
-		void smtpHost=self.checkSmtpHost(try);
-		if(smtpHost == false) { 
-		      return "Host does not exist";
+		// Workaround for uw-imap bug
+		if( connection.sendMessage( smtpHost, message ) ) {
+			return true;
+		}
+		if( connection.sendMessage( smtpHost + '/smtp/novalidate-cert', message ) ) {
+			return true;
 		}
 		
-		else  {
-		     
-			
-			if( (Network.TCP.connect(smtpHost,25))) {			
-				
-				if( connection.sendMessage( smtpHost, message ) ) {
-					return "Test mail successfully sent";
-				}
-				
-				else return "User does not exist";
-
-			 }
-
-			else {
-				return "Connection error";
-			}
-			
-
-		}
-		
-		
-		
+		try ++;
+		return MailUtilities.sendMessage( connection, message, try );
 	}
 
 	function setOutgoingHeader( object message ,string ReturnPath) {
