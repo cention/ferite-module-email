@@ -15,19 +15,71 @@ namespace MailUtilities{
 		This function select a random server from the  list of servers available in webframework.config 
 
 	**/
+	 
 	 function selectMailServer(){
 		monitor{	
-			array servers;
-			number rs = Math.randomNumber( 0,servers.size() ); //
+			array servers,temp,server=[],namePass,user_n_p,t,t_n;
+			number rs ;
+			string smtpHostValue,smtpHostName;
+
 			webframework.Config.byName('Outbound.Mailserver.*').each() using ( s  ) {
+				servers[] = s.name;
 				servers[] = s.value;
-			};		
-			return servers[rs];
+
+			};
+//Console.println(servers);
+			for(number i=0;i<servers.size()-1;){
+			      temp=servers[i].toArray(".");
+
+			      if(temp[temp.size()-1]=="Username" || temp[temp.size()-1]=="Password"){
+				namePass[]=servers[i];
+				namePass[]=servers[i+1];
+			      }
+			      else {
+				server[]=servers[i];
+				server[]=servers[i+1];
+			      }
+
+			    i+=2;
+			}
+
+		rs = Math.randomNumber( 0,(server.size()/2)-1 );
+		smtpHostName=server[2*rs];
+		smtpHostValue=server[2*rs+1];
+
+		user_n_p[] = server[2*rs];
+		user_n_p[] = server[2*rs+1];
+
+		t=server[2*rs].toArray(".");
+		
+
+		for(number j=0;j<namePass.size()/2;j++){
+		    t_n=namePass[2*j].toArray(".");
+
+		    if(t_n[t_n.size()-2]==t[t.size()-1])
+			{
+			    if(t_n[t_n.size()-1]=="Username" ){
+
+				user_n_p[]=namePass[2*j];
+				user_n_p[]=namePass[2*j+1];
+			    }
+			    if(t_n[t_n.size()-1]=="Password"){
+
+				user_n_p[]=namePass[2*j];
+				user_n_p[]=namePass[2*j+1];
+			    }
+			}
+
+		  }
+
+
+			return user_n_p;
 		}
 		handle{			
 			Console.println(  err.str );
 		}
 	}
+
 
 	function failSafeTry(){
 		monitor{
@@ -46,23 +98,66 @@ namespace MailUtilities{
 	function sendMessage( object connection, object message )
 		return .sendMessage( connection, message, 0 );
 		
+
 	function sendMessage( object connection, object message, number try ) {
-		string smtpHost = '';
+		array server,check_p_u;
+
+		string host='',username='',password='';
 
 		if ( try > MailUtilities.failSafeTry() ) 
 			return false;
 	
-		smtpHost = MailUtilities.selectMailServer();	
-		
+
+
+		server =  MailUtilities.selectMailServer();
+
+		host=server[1];
+
+		//Console.println(server[0]);
+		if(server.size()>2){
+				for(number k=2;k<server.size();k++){
+				    check_p_u=server[k].toArray(".");
+
+				    if(check_p_u[check_p_u.size()-1]=="Username")
+				      username=server[k+1];
+
+				    if(check_p_u[check_p_u.size()-1]=="Password")
+				      password=server[k+1];
+
+				}
+		//Console.println(host);
+		//Console.println(username);
+		//Console.println(password);
+
+		/*Authentication*/ 
+		if(connection.openMailboxURI( "{$host:993/imap/ssl/novalidate-cert/user=$username}", password)){ 
+
+		           number count = connection.messageCount();
+			   Console.println(count);
+			   Console.println("Successfully connected...");
+		      }
+		    else{
+		      Console.println("Not connected...");   
+		      return false;
+		      }
+
+
 		// Workaround for uw-imap bug
-		if( connection.sendMessage( smtpHost, message ) ) {
+		if( connection.sendMessage( host, message ) ) {
+
 			return true;
 		}
-		if( connection.sendMessage( smtpHost + '/smtp/novalidate-cert', message ) ) {
-			return true;
-		}
+	      }
+
+// 		else 
+// 		    Console.println("Connection1");
+// 		if( connection.sendMessage( server , message ) ) {
+// 		    Console.println("Connection2");
+// 			return true;
+// 		}
 		
 		try ++;
+
 		return MailUtilities.sendMessage( connection, message, try );
 	}
 
