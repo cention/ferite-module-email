@@ -128,8 +128,8 @@ namespace MailUtilities{
 		/*Authentication*/ 
 		if(connection.openMailboxURI( "{$host:993/imap/ssl/novalidate-cert/user=$username}", password)){ 
 
-		           number count = connection.messageCount();
-			   Console.println(count);
+		       //    number count = connection.messageCount();
+			//   Console.println(count);
 			   Console.println("Successfully connected...");
 		      }
 		    else{
