@@ -20,14 +20,14 @@ namespace MailUtilities{
 		monitor{	
 			array servers,temp,server=[],namePass,user_n_p,t,t_n;
 			number rs ;
-			string smtpHostValue,smtpHostName;
+	//		string smtpHostValue,smtpHostName;
 
 			webframework.Config.byName('Outbound.Mailserver.*').each() using ( s  ) {
 				servers[] = s.name;
 				servers[] = s.value;
 
 			};
-//Console.println(servers);
+
 			for(number i=0;i<servers.size()-1;){
 			      temp=servers[i].toArray(".");
 
@@ -43,37 +43,37 @@ namespace MailUtilities{
 			    i+=2;
 			}
 
-		rs = Math.randomNumber( 0,(server.size()/2)-1 );
-		smtpHostName=server[2*rs];
-		smtpHostValue=server[2*rs+1];
+		      rs = Math.randomNumber( 0,(server.size()/2)-1 );
+	      //	smtpHostName=server[2*rs];
+	      //	smtpHostValue=server[2*rs+1];
 
-		user_n_p[] = server[2*rs];
-		user_n_p[] = server[2*rs+1];
+		      user_n_p[] = server[2*rs];
+		      user_n_p[] = server[2*rs+1];
 
-		t=server[2*rs].toArray(".");
-		
+		      t=server[2*rs].toArray(".");
+		      
 
-		for(number j=0;j<namePass.size()/2;j++){
-		    t_n=namePass[2*j].toArray(".");
+		      for(number j=0;j<namePass.size()/2;j++){
+			  t_n=namePass[2*j].toArray(".");
 
-		    if(t_n[t_n.size()-2]==t[t.size()-1])
-			{
-			    if(t_n[t_n.size()-1]=="Username" ){
+			  if(t_n[t_n.size()-2]==t[t.size()-1])
+			      {
+				  if(t_n[t_n.size()-1]=="Username" ){
 
-				user_n_p[]=namePass[2*j];
-				user_n_p[]=namePass[2*j+1];
-			    }
-			    if(t_n[t_n.size()-1]=="Password"){
+				      user_n_p[]=namePass[2*j];
+				      user_n_p[]=namePass[2*j+1];
+				  }
+				  if(t_n[t_n.size()-1]=="Password"){
 
-				user_n_p[]=namePass[2*j];
-				user_n_p[]=namePass[2*j+1];
-			    }
+				      user_n_p[]=namePass[2*j];
+				      user_n_p[]=namePass[2*j+1];
+				  }
+			      }
+
 			}
 
-		  }
 
-
-			return user_n_p;
+			      return user_n_p;
 		}
 		handle{			
 			Console.println(  err.str );
@@ -113,7 +113,6 @@ namespace MailUtilities{
 
 		host=server[1];
 
-		//Console.println(server[0]);
 		if(server.size()>2){
 				for(number k=2;k<server.size();k++){
 				    check_p_u=server[k].toArray(".");
@@ -125,9 +124,6 @@ namespace MailUtilities{
 				      password=server[k+1];
 
 				}
-		//Console.println(host);
-		//Console.println(username);
-		//Console.println(password);
 
 		/*Authentication*/ 
 		if(connection.openMailboxURI( "{$host:993/imap/ssl/novalidate-cert/user=$username}", password)){ 
