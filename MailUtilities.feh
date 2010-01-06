@@ -20,7 +20,6 @@ namespace MailUtilities{
 		monitor{	
 			array servers,temp,server=[],namePass,user_n_p,t,t_n;
 			number rs ;
-	//		string smtpHostValue,smtpHostName;
 
 			webframework.Config.byName('Outbound.Mailserver.*').each() using ( s  ) {
 				servers[] = s.name;
@@ -44,8 +43,6 @@ namespace MailUtilities{
 			}
 
 		      rs = Math.randomNumber( 0,(server.size()/2)-1 );
-	      //	smtpHostName=server[2*rs];
-	      //	smtpHostValue=server[2*rs+1];
 
 		      user_n_p[] = server[2*rs];
 		      user_n_p[] = server[2*rs+1];
@@ -101,7 +98,7 @@ namespace MailUtilities{
 
 	function sendMessage( object connection, object message, number try ) {
 		array server,check_p_u;
-
+		boolean ssl;
 		string host='',username='',password='';
 
 		if ( try > MailUtilities.failSafeTry() ) 
@@ -125,21 +122,14 @@ namespace MailUtilities{
 
 				}
 
-		/*Authentication*/ 
-		if(connection.openMailboxURI( "{$host:993/imap/ssl/novalidate-cert/user=$username}", password)){ 
 
-		       //    number count = connection.messageCount();
-			//   Console.println(count);
-			   Console.println("Successfully connected...");
-		      }
-		    else{
-		      Console.println("Not connected...");   
-		      return false;
-		      }
-
+		if( username != "" && password != "")
+		    ssl = true;
+		else
+		    ssl = false;
 
 		// Workaround for uw-imap bug
-		if( connection.sendMessage( host, message ) ) {
+		if( connection.sendMessage( host, username, password, ssl, message ) ) {
 
 			return true;
 		}
