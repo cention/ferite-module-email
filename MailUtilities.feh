@@ -98,9 +98,10 @@ namespace MailUtilities{
 
 	function sendMessage( object connection, object message, number try ) {
 		array server,check_p_u;
-		boolean ssl;
+		boolean ssl=webframework.Config.byName('Server.ssl')[0];
 		string host='',username='',password='';
 
+		
 		if ( try > MailUtilities.failSafeTry() ) 
 			return false;
 	
@@ -123,10 +124,6 @@ namespace MailUtilities{
 				}
 
 
-		if( username != "" && password != "")
-		    ssl = true;
-		else
-		    ssl = false;
 
 		// Workaround for uw-imap bug
 		if( connection.sendMessage( host, username, password, ssl, message ) ) {
