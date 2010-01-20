@@ -98,7 +98,7 @@ namespace MailUtilities{
 
 	function sendMessage( object connection, object message, number try ) {
 		array server,check_p_u;
-		boolean ssl=webframework.Config.byName('Server.ssl')[0];
+		boolean ssl=webframework.Config.byName('Outbound.Mailserver.Main1.ssl')[0];
 		string host='',username='',password='';
 
 		
