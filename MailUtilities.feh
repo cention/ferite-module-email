@@ -23,21 +23,23 @@ namespace MailUtilities{
 	function selectMailServer(){
 		monitor{	
 			array serverList = [];
-			object r = new Regexp("^Outbound\.Mailserver\.(.*?)\.(.*?)");
-			
+			object r = new Regexp('^outbound\.mailserver\.(.*?)\.(.*)', 'i');
+
 			webframework.Config.byName('Outbound.Mailserver.*').each() using ( config ) {
-				object match = r.match(config.name);
+				object match = r.match(config.name.toLower());
 				if( match ) {
 					string server = match.capture(0).toLower();
-					if( not serverList.keyExists(server) ) {
-						serverList[server] = [ 'host' => 'localhost', 'username' => '', 'password' => '', 'ssl' => false ];
+					string part = match.capture(1).toLower();
+					if( server and part ) {
+						if( not serverList.keyExists(server) ) {
+							serverList[server] = [ 'host' => 'localhost', 'username' => '', 'password' => '', 'ssl' => false ];
+						}
+						serverList[server][part] = config.value;
 					}
-					serverList[server][match.capture(1).toLower] = config.value;
 				}
-			};
-			
+			};	
+			.seedRandomNumberGenerator();
 			Console.println("Mail servers: $serverList");
-			
 			return serverList[Math.randomNumber(0, serverList.size() - 1)];
 		}
 		handle{
@@ -56,27 +58,23 @@ namespace MailUtilities{
 		}
 	}
 
-	/**
-		sendMessage which tries to send message. It tries failSafeTry number of attempts.
-
-	**/
-
 	function sendMessage( object connection, object message )
 		return .sendMessage( connection, MailUtilities.selectMailServer(), message, 0 );
-		
 
 	function sendMessage( object connection, array server, object message, number try ) {
 		if ( try > MailUtilities.failSafeTry() ) 
 			return false;
 
-		// Workaround for uw-imap bug
-		Console.println("Attempt [$try] for server $server");
-		if( connection.sendMessage( server['host'], server['username'], server['password'], server['ssl'], message ) ) {
-			return true;
+		if( server ) {
+			// Workaround for uw-imap bug
+			Console.println("Attempt [$try] for server $server");
+			if( connection.sendMessage( server['host'], server['username'], server['password'], server['ssl'], message ) ) {
+				return true;
+			}
 		}
 
 		try ++;
-		return MailUtilities.sendMessage( connection, message, try );
+		return MailUtilities.sendMessage( connection, server, message, try );
 	}
 
 	function setOutgoingHeader( object message ,string ReturnPath) {
