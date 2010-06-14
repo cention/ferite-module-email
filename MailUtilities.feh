@@ -34,7 +34,9 @@ namespace MailUtilities{
 						if( not serverList.keyExists(server) ) {
 							serverList[server] = [ 'host' => 'localhost', 'username' => '', 'password' => '', 'ssl' => false ];
 						}
-						serverList[server][part] = config.value;
+						serverList[server][part] = (part == 'ssl' ?
+														(config.value.toLower() == 'yes' ? true : false) :
+														config.value);
 					}
 				}
 			};	
