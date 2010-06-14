@@ -49,7 +49,6 @@ namespace MailUtilities{
 		return [];
 	}
 
-
 	function failSafeTry(){
 		monitor{
 			return webframework.Config.byName('FailSafeTry')[0].value.toNumber();
