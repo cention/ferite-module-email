@@ -41,7 +41,6 @@ namespace MailUtilities{
 				}
 			};	
 			.seedRandomNumberGenerator();
-			Console.println("Mail servers: $serverList");
 			return serverList[Math.randomNumber(0, serverList.size() - 1)];
 		}
 		handle{
@@ -69,7 +68,7 @@ namespace MailUtilities{
 
 		if( server ) {
 			// Workaround for uw-imap bug
-			Console.println("Attempt [$try] for server $server");
+			log(" ---> Send attempt [$try] for server $server");
 			if( connection.sendMessage( server['host'], server['username'], server['password'], server['ssl'], message ) ) {
 				return true;
 			}
