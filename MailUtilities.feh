@@ -8,73 +8,42 @@ global {
 	number failSafeTry = 3;
 }
 
-
 namespace MailUtilities{
-
 	/**
 		This function select a random server from the  list of servers available in webframework.config 
-
 	**/
+	boolean seeded = false;
+	function seedRandomNumberGenerator {
+		if( not .seeded ) {
+			.seeded = true;
+			Math.srand(Date.GMTnow());
+		}
+	}
 	 
-	 function selectMailServer(){
+	function selectMailServer(){
 		monitor{	
-			array servers,temp,server=[],namePass,user_n_p,t,t_n;
-			number rs ;
-
-			webframework.Config.byName('Outbound.Mailserver.*').each() using ( s  ) {
-				servers[] = s.name;
-				servers[] = s.value;
-
+			array serverList = [];
+			object r = new Regexp("^Outbound\.Mailserver\.(.*?)\.(.*?)");
+			
+			webframework.Config.byName('Outbound.Mailserver.*').each() using ( config ) {
+				object match = r.match(config.name);
+				if( match ) {
+					string server = match.capture(0).toLower();
+					if( not serverList.keyExists(server) ) {
+						serverList[server] = [ 'host' => 'localhost', 'username' => '', 'password' => '', 'ssl' => false ];
+					}
+					serverList[server][match.capture(1).toLower] = config.value;
+				}
 			};
-
-			for(number i=0;i<servers.size()-1;){
-			      temp=servers[i].toArray(".");
-
-			      if(temp[temp.size()-1]=="Username" || temp[temp.size()-1]=="Password"){
-				namePass[]=servers[i];
-				namePass[]=servers[i+1];
-			      }
-			      else {
-				server[]=servers[i];
-				server[]=servers[i+1];
-			      }
-
-			    i+=2;
-			}
-
-		      rs = Math.randomNumber( 0,(server.size()/2)-1 );
-
-		      user_n_p[] = server[2*rs];
-		      user_n_p[] = server[2*rs+1];
-
-		      t=server[2*rs].toArray(".");
-		      
-
-		      for(number j=0;j<namePass.size()/2;j++){
-			  t_n=namePass[2*j].toArray(".");
-
-			  if(t_n[t_n.size()-2]==t[t.size()-1])
-			      {
-				  if(t_n[t_n.size()-1]=="Username" ){
-
-				      user_n_p[]=namePass[2*j];
-				      user_n_p[]=namePass[2*j+1];
-				  }
-				  if(t_n[t_n.size()-1]=="Password"){
-
-				      user_n_p[]=namePass[2*j];
-				      user_n_p[]=namePass[2*j+1];
-				  }
-			      }
-
-			}
-
-
-			      return user_n_p;
+			
+			Console.println("Mail servers: $serverList");
+			
+			return serverList[Math.randomNumber(0, serverList.size() - 1)];
 		}
-		handle{			
-			Console.println(  err.str );
+		handle{
+			Console.println("Unable to select mail server: " + err.str);
 		}
+		return [];
 	}
 
 
@@ -93,54 +62,20 @@ namespace MailUtilities{
 	**/
 
 	function sendMessage( object connection, object message )
-		return .sendMessage( connection, message, 0 );
+		return .sendMessage( connection, MailUtilities.selectMailServer(), message, 0 );
 		
 
-	function sendMessage( object connection, object message, number try ) {
-		array server,check_p_u;
-		boolean ssl=webframework.Config.byName('Outbound.Mailserver.Main1.ssl')[0];
-		string host='',username='',password='';
-
-		
+	function sendMessage( object connection, array server, object message, number try ) {
 		if ( try > MailUtilities.failSafeTry() ) 
 			return false;
-	
-
-
-		server =  MailUtilities.selectMailServer();
-
-		host=server[1];
-
-		if(server.size()>2){
-				for(number k=2;k<server.size();k++){
-				    check_p_u=server[k].toArray(".");
-
-				    if(check_p_u[check_p_u.size()-1]=="Username")
-				      username=server[k+1];
-
-				    if(check_p_u[check_p_u.size()-1]=="Password")
-				      password=server[k+1];
-
-				}
-
-
 
 		// Workaround for uw-imap bug
-		if( connection.sendMessage( host, username, password, ssl, message ) ) {
-
+		Console.println("Attempt [$try] for server $server");
+		if( connection.sendMessage( server['host'], server['username'], server['password'], server['ssl'], message ) ) {
 			return true;
 		}
-	      }
 
-// 		else 
-// 		    Console.println("Connection1");
-// 		if( connection.sendMessage( server , message ) ) {
-// 		    Console.println("Connection2");
-// 			return true;
-// 		}
-		
 		try ++;
-
 		return MailUtilities.sendMessage( connection, message, try );
 	}
 
