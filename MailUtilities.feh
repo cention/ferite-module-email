@@ -134,7 +134,437 @@ namespace MailUtilities{
 			return false;
 		}
 	}
+	
+	/**
+	 * @function sanitizeHTML
+	 * @declaration function sanitizeHTML( string html, string replace_image_url )
+	 * @brief Sanitize a chunk of HTML so it can safetely be displayed within a web applicaion. Note that <html>, <head> and <body> is kept so the output is best displayed within an <iframe>.
+	 * @param string html the html chunk to sanatize
+	 * @param string replace_image_url the url to an image that is used to replace bad images
+	 * @return The sanitized HTML as a new string.
+	 */
+	function sanitizeHTML( string html, string replace_image_url ) {
+		// In order to handle HTML that looks like '<scr<script>Kiddies</script>ipt> are clever buggers</script>'
+		// the sanitization is run until no change has been made.
+		string old_html;
+		do {
+			old_html = html;
+			html = MailUtilities._sanitizeHTML(html, replace_image_url);
+		} while( html != old_html );
+		return html;
+	}
+	
+	function _sanitizeHTML( string html, string replace_image_url ) {
+		array remove_tags = [
+			// <base> specifies a default address or a default target for all links on a page.
+			// Squirrelmail blocks this so we are blocking it too.
+			// Can not at the moment see the danger with it but I trust the Squirrelmail developers.
+			'base',
+			// <frame> defines one particular window (frame) within a frameset.
+			// Allows including an external page within our application which is dangerous.
+			// Allowing this if the src attribute points to a cid of a part included within the email could be a possibility.
+			'frame',
+			// <iframe> defines an inline frame that contains another document.
+			// Has the same problems as <frame>.
+			'iframe',
+			// <plaintext> makes it so that everything including </plaintext> after this tag is treated as plain text. There is no stopping it!
+			// This tag would destroy our application's pages.
+			'plaintext',
+			// <param> is used to define parameters or variables for an object or applet element.
+			// These should be removed when we remove <applet> and <object> with their content but I have added it here just in case.
+			'param'
+			// <marquee> creates a scrolling display.
+			// Squirrelmail blocks this but besides from it being very annoying I can't really see a reason for blocking this.
+			// I think we should leave the HTML as intact as possible and only remove things which adds a security threat.
+			//'marquee',
+			// <meta> provides metadata about the HTML document.
+			// Squirrelmail blocks this but since we are going to display the content within an <iframe> I believe keeping
+			// these tags could be a good idea in case the the document we are displaying uses another character encoding.
+			//'meta',
+			// Squirrelmail blocks <html> and <head> but since we are as said above displaying the content within an <iframe>
+			// keeping these two makes sense.
+			//'html',
+			//'head'
+		];
+	
+		array remove_tags_and_content = [
+			// <script> used to define a client-side script, such as a Javascript.
+			// And we absolutely do not want anyone to be able to execute evil Javascript in our application.
+			'script',
+			// <object> used to include objects such as images, audio, videos, Java applets, ActiveX, PDF, and Flash.
+			// Could be just as evil as Javascript and loading external content is a bad idea.
+			'object',
+			// <applet> defines an embedded applet.
+			// Has the same security concerns as <object>.
+			'applet',
+			// <embed> puts a browser plugin in the page.
+			// Has the same security concerns as <object>.
+			'embed',
+			// <frameset> defines the general layout of a web page that uses frames.
+			// See explanation about <frame>.
+			'frameset',
+			// <xmp> indicates a block of text where all html tags are ignored.
+			// I do not see the harm in this tag but Squirrelmail blocks it and I trust the Squirrelmail developers.
+			'xmp',
+			// <xml>
+			'xml'
+		];
+	
+		array remove_attributes = [
+			// Controls where the new document will be displayed when the user follows a link.
+			// We are going to override this and make sure links are displayed in a new window.
+			'target',
+			// Examples: onclick, onchange. Used to execute a script when an event occur.
+			'on(.*)',
+			// Can be used in <img> tags to point to movie file. If browser supports it dynsrc will be loaded instead of src.
+			'dynsrc',
+			'data(.*)',
+			'lowsrc(.*)'
+		];
+	
+		object evil_uri_regexp = new Regexp('((.*)(script|mocha|about):(.*))', 'i');
+	
+		object tag_regexp = new Regexp('<[\s]*([a-z]+)([^>]*?)(/)?>', 'i');
+		object style_tag_regexp = new Regexp('<[\s]*style([^>]*)>(.*?)<[\s]*(/)[\s]*style[^>]*>', 'i');
+	
+		object attribute_type_1_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?"([^"]*)"', 'i'); // double quotes, href="http://www.cention.se"
+		object attribute_type_2_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?\'([^"]*)\'', 'i'); // Single quotes, href='http://www.cention.se'
+	
+		// If you are thinking about combining the attribute regular expressions into one please remember this.
+		// Example: name="va'lue"
+		// Should produce:
+		//  capture 0: name
+		//  capture 1: va'lue 
+	
+		object translate_entitites = closure( string& value, string regexp, boolean hex ) {
+			array matches = Regexp.matchAll(regexp, value);
+			array replacements = [];
+			matches.each() using ( match ) {
+				number entity = (hex ? match.capture(0).hexToNumber() : match.capture(0));
+				string replacement = String.numberToByte(entity);
+				value = Regexp.replaceAll(match.match(), value, replacement);
+			};
+			return (matches ? true : false);
+		};
+	
+		object fix_attribute_value = closure( string value ) {
+			string old_value = value;
+		
+			array dangerous_characters = [
+				'&#x029F;' => 'l', '&#0671;' => 'l', /* L UNICODE IPA Extension */
+				'&#x0280;' => 'r', '&#0640;' => 'r', /* R UNICODE IPA Extension */
+				'&#x0274;' => 'n', '&#0628;' => 'n', /* N UNICODE IPA Extension */
+				'&#xFF25;' => 'E', '&#65317;' => 'E', /* Unicode FULLWIDTH LATIN CAPITAL LETTER E */
+				'&#xFF45;' => 'e', '&#65349;' => 'e', /* Unicode FULLWIDTH LATIN SMALL LETTER E */
+				'&#xFF38;' => 'X', '&#65336;' => 'X', /* Unicode FULLWIDTH LATIN CAPITAL LETTER X */
+				'&#xFF58;' => 'x', '&#65368;' => 'x', /* Unicode FULLWIDTH LATIN SMALL LETTER X */
+				'&#xFF30;' => 'P', '&#65328;' => 'P', /* Unicode FULLWIDTH LATIN CAPITAL LETTER P */
+				'&#xFF50;' => 'p', '&#65360;' => 'p', /* Unicode FULLWIDTH LATIN SMALL LETTER P */
+				'&#xFF32;' => 'R', '&#65330;' => 'R', /* Unicode FULLWIDTH LATIN CAPITAL LETTER R */
+				'&#xFF52;' => 'r', '&#65362;' => 'r', /* Unicode FULLWIDTH LATIN SMALL LETTER R */
+				'&#xFF33;' => 'S', '&#65331;' => 'S', /* Unicode FULLWIDTH LATIN CAPITAL LETTER S */
+				'&#xFF53;' => 's', '&#65363;' => 's', /* Unicode FULLWIDTH LATIN SMALL LETTER S */
+				'&#xFF29;' => 'I', '&#65321;' => 'I', /* Unicode FULLWIDTH LATIN CAPITAL LETTER I */
+				'&#xFF49;' => 'i', '&#65353;' => 'i', /* Unicode FULLWIDTH LATIN SMALL LETTER I */
+				'&#xFF2F;' => 'O', '&#65327;' => 'O', /* Unicode FULLWIDTH LATIN CAPITAL LETTER O */
+				'&#xFF4F;' => 'o', '&#65359;' => 'o', /* Unicode FULLWIDTH LATIN SMALL LETTER O */
+				'&#xFF2E;' => 'N', '&#65326;' => 'N', /* Unicode FULLWIDTH LATIN CAPITAL LETTER N */
+				'&#xFF4E;' => 'n', '&#65358;' => 'n', /* Unicode FULLWIDTH LATIN SMALL LETTER N */
+				'&#xFF2C;' => 'L', '&#65324;' => 'L', /* Unicode FULLWIDTH LATIN CAPITAL LETTER L */
+				'&#xFF4C;' => 'l', '&#65356;' => 'l', /* Unicode FULLWIDTH LATIN SMALL LETTER L */
+				'&#xFF35;' => 'U', '&#65333;' => 'U', /* Unicode FULLWIDTH LATIN CAPITAL LETTER U */
+				'&#xFF55;' => 'u', '&#65365;' => 'u', /* Unicode FULLWIDTH LATIN SMALL LETTER U */
+				'&#x207F;' => 'n', '&#8319;' => 'n', /* Unicode SUPERSCRIPT LATIN SMALL LETTER N */
+				"\xEF\xBC\xA5" => 'E', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER E */ // in unicode this is some Chinese char range
+				"\xEF\xBD\x85" => 'e', /* Shift JIS FULLWIDTH LATIN SMALL LETTER E */
+				"\xEF\xBC\xB8" => 'X', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER X */
+				"\xEF\xBD\x98" => 'x', /* Shift JIS FULLWIDTH LATIN SMALL LETTER X */
+				"\xEF\xBC\xB0" => 'P', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER P */
+				"\xEF\xBD\x90" => 'p', /* Shift JIS FULLWIDTH LATIN SMALL LETTER P */
+				"\xEF\xBC\xB2" => 'R', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER R */
+				"\xEF\xBD\x92" => 'r', /* Shift JIS FULLWIDTH LATIN SMALL LETTER R */
+				"\xEF\xBC\xB3" => 'S', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER S */
+				"\xEF\xBD\x93" => 's', /* Shift JIS FULLWIDTH LATIN SMALL LETTER S */
+				"\xEF\xBC\xA9" => 'I', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER I */
+				"\xEF\xBD\x89" => 'i', /* Shift JIS FULLWIDTH LATIN SMALL LETTER I */
+				"\xEF\xBC\xAF" => 'O', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER O */
+				"\xEF\xBD\x8F" => 'o', /* Shift JIS FULLWIDTH LATIN SMALL LETTER O */
+				"\xEF\xBC\xAE" => 'N', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER N */
+				"\xEF\xBD\x8E" => 'n', /* Shift JIS FULLWIDTH LATIN SMALL LETTER N */
+				"\xEF\xBC\xAC" => 'L', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER L */
+				"\xEF\xBD\x8C" => 'l', /* Shift JIS FULLWIDTH LATIN SMALL LETTER L */
+				"\xEF\xBC\xB5" => 'U', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER U */
+				"\xEF\xBD\x95" => 'u', /* Shift JIS FULLWIDTH LATIN SMALL LETTER U */
+				"\xE2\x81\xBF" => 'n', /* Shift JIS FULLWIDTH SUPERSCRIPT N */
+				"\xCA\x9F" => 'l', /* L UNICODE IPA Extension */
+				"\xCA\x80" => 'r', /* R UNICODE IPA Extension */
+				"\xC9\xB4" => 'n'  /* N UNICODE IPA Extension */
+			];
+		
+			// Remove NUL
+			value = Regexp.replaceAll("\0", value, "");
+		
+			// Translate all dangerous Unicode or Shift_JIS characters which are accepted by
+			// IE as regular characters.
+			dangerous_characters.map() using ( character, replacement ) {
+				value = Regexp.replaceAll(character, value, replacement);
+			};
+		
+			// Escapes are useful for special characters like "{}[]()'&. In other cases they are
+			// used for XSS.
+			value = Regexp.replaceAll("(\\\\)([a-zA-Z]{1})", value, '\2');
+		
+			old_value = value;
+		
+			if( Regexp.match('&', value) or Regexp.match("\\\\", value) ) {
+				boolean match;
+				do {
+					match = translate_entitites.invoke(value /* passed by reference */, '&#0*(\d+);*', false);
+					match = translate_entitites.invoke(value /* passed by reference */, '&#x0*((\d|[a-fA-F])+);*', true);
+					match = translate_entitites.invoke(value /* passed by reference */, '\\\\(\d+)', true);
+				} while ( match == true );
+			}
+		
+			return value;
+		};
+		
+		object control_characters_regexp = null;
+		
+		object fix_style = closure( string style ) {
+			object import_regexp = new Regexp('^\s*(@import.*)$', 'mi');
+			object url_regexp = new Regexp('url\s*\([\'"]*(.+)[\'"]*\)', 'si');
+			style = Regexp.replaceAll('(\/\*.*?\*\/)', style, ''); // Remove comments.
+			style = import_regexp.replaceAll(style, '');
+			style = url_regexp.replaceAll(style) using ( match ) {
+				string url = match.capture(0);
+				if( url == '' or evil_uri_regexp.match(url) or control_characters_regexp.match(url) )
+					return "url(${replace_image_url})";
+				return "url(${url})";
+			};
+			return style;
+		};
+	
+		array control_characters = [];
+		for( number i = 0; i <= 37; i++ )
+			control_characters[] = i;
+		for( number i = 200; i <= 377; i ++ )
+			control_characters[] = i;
+	
+		control_characters_regexp = new Regexp("\\\\(${control_characters.join('|')})");
+	
+		// Remove Netscape's Javascript entitites like: &{alert('boo')};
+		html = Regexp.replaceAll('&{.*?};', html, '');
+
+		remove_tags_and_content.each() using ( tag ) {
+			object start_tag_r = new Regexp("<[\s]*${tag}[^>]*>", "i");
+			object tag_r = new Regexp("<[\s]*(/)?[\s]*${tag}[^>]*>", "i");
+			object start_tag_match = null;
+		
+			while( (start_tag_match = start_tag_r.match(html)) ) {
+				string  part = html[start_tag_match.end()..];
+				number  start_tags = 0;
+				number  tag_end = 0;
+				boolean tag_end_found = false;
+				object  tag_match = null;
+			
+				while( (tag_match = tag_r.match(part)) ) {
+					array captures = tag_match.captures();
+				
+					tag_end += tag_match.end();
+				
+					if( captures.size() > 0 and captures[0] == '/' ) {
+						if( start_tags == 0 ) {
+							number start = start_tag_match.start() - 1;
+							number end = start_tag_match.end() + tag_end;
+							string new_html;
+							new_html += html[..start];
+							if( html.length() > end ) {
+								new_html += html[end..];
+							}
+							html = new_html;
+							tag_end_found = true;
+							break;
+						} else {
+							start_tags--;
+						}
+					} else {
+						start_tags++;
+					}
+				
+					if( part.length() > tag_match.end() ) {
+						part = part[tag_match.end()..];
+					} else {
+						break;
+					}
+				}
+			
+				if( not tag_end_found ) {
+					number start = start_tag_match.start() - 1;
+					html = html[..start];
+					break;
+				}
+			}
+		};
+	
+		remove_tags.each() using ( tag ) {
+			object r = new Regexp("<[\s]*(/)?[\s]*${tag}[^>]*>", "i");
+			html = r.replaceAll(html, "");
+		};
+	
+		html = tag_regexp.replaceAll(html) using ( tag_match ) {
+			string tag;
+			string end;
+			array  attributes = [];
+			array  safe_attributes = [];
+		
+			tag = tag_match.capture(0);
+			end = tag_match.capture(2);
+		
+			attributes = attributes.append(attribute_type_1_regexp.matchAll(tag_match.capture(1)));
+			attributes = attributes.append(attribute_type_2_regexp.matchAll(tag_match.capture(1)));
+		
+			attributes.each() using ( attribute_match ) {
+				string name = attribute_match.capture(0);
+				string value = attribute_match.capture(1);
+			
+				boolean skip_attribute = false;
+			
+				remove_attributes.each() using ( remove_attribute ) {
+					object r = new Regexp(remove_attribute, 'i');
+					if( r.match(name) ) {
+						skip_attribute = true;
+						return false; // break
+					}
+				};
+			
+				if( not skip_attribute ) {
+					boolean attribute_value_is_safe = true;
+				
+					string old_value = value;
+					value = fix_attribute_value.invoke(value);
+				
+					switch( name ) {
+						case 'href':
+						case 'action':
+							if( value == '' or evil_uri_regexp.match(value) or control_characters_regexp.match(value) )
+								value = '#';
+							attribute_value_is_safe = false;
+							if( (tag == 'a' and name == 'href') or (tag == 'form' and name == 'action') )
+								attribute_value_is_safe = true;
+							break;
+						case 'src':
+						case 'background':
+							if( value == '' or evil_uri_regexp.match(value) or control_characters_regexp.match(value) )
+								value = replace_image_url;
+							attribute_value_is_safe = false;
+							if( (tag == 'img' and name == 'src') or (tag == 'table' and name == 'background') )
+								attribute_value_is_safe = true;
+							break;
+						case 'style':
+							// Entities are used in the attribute value. In 99% of the cases it's there as XSS
+							// i.e. <div style="{ left:exp&#x0280;essio&#x0274;( alert('XSS') ) }">
+							if( old_value != value ) {
+								attribute_value_is_safe = false;
+							} else {
+								value = fix_style.invoke(value);
+								// Control characters in style attribute values can be used for XSS.
+								if( control_characters_regexp.match(value) )
+									attribute_value_is_safe = false;
+							}
+							break;
+					}
+				
+					if( attribute_value_is_safe ) {
+						safe_attributes[] = [ 'name' => name, 'value' => value ];
+					}
+				}
+			};
+		
+			// Make sure links are opened in an a new window.
+			if( tag == 'a' ) {
+				safe_attributes[] = [ 'name' => 'target', 'value' => '_blank' ];
+			}
+		
+			return '<{0:tag}{1:attributes}{2:end}>'.expand(
+				tag,
+				(safe_attributes ? ' ' + safe_attributes.join(' ') using ( attr ) {
+					return '{0:name}="{1:value}"'.expand(attr['name'], attr['value']);
+				} : ''),
+				end);
+		};
+	
+		html = style_tag_regexp.replaceAll(html) using ( match ) {
+			string attributes = match.capture(0);
+			string content = match.capture(1);
+			content = fix_attribute_value.invoke(content);
+			content = fix_style.invoke(content);
+			if( control_characters_regexp.match(content) )
+				content = '';
+			return '<style {0:attributes}>{1:content}</style>'.expand(attributes, content);
+		};
+	
+		return html;
+	}
 }
 
-
+namespace modifies String {
+	function toRichText( string s ) {
+		s = Regexp.replaceAll('&', s, '&amp;');
+		s = Regexp.replaceAll('  ', s, ' &nbsp;');
+		s = Regexp.replaceAll('<', s, '&lt;');
+		s = Regexp.replaceAll('>', s, '&gt;');
+		s = Regexp.replaceAll("\t", s, ' &nbsp; &nbsp;');
+		s = Regexp.replaceAll("[\r]?[\n]", s, '<br />');
+		return s;
+	}
+	function expandEmbeddedContent( string html, object errand, boolean showExternal, string replacementImage, boolean sanitizeHTML ) {
+		object attributeRegexp = new Regexp('(background|src)="([^"]*)"', 'i');
+		object cssUrlRegexp = new Regexp('url\s*\([\'"]*(.+?)[\'"]*\)', 'si');
+		object cidRegexp = new Regexp('^cid:([^"]+)');
+		
+		array embeddedImages = [];
+		
+		object expandImage = closure( string value ) {
+			object cidMatch = cidRegexp.match(value);
+			if( cidMatch ) {
+				string contentID = '<' + cidMatch.capture(0) + '>';
+				if( embeddedImages.keyExists(contentID) ) {
+					object attachment = embeddedImages[contentID];
+					value = uriForApplicationAction("workflow/-/errand/${errand.id}/attachment/${attachment.id}");
+				} else {
+					value = replacementImage;
+				}
+			} else {
+				if( not showExternal ) {
+					value = replacementImage;
+				}
+			}
+			return value;
+		};
+		
+		
+		errand.mail.attachments.each() using ( attachment ) {
+			if( attachment.contentID ) {
+				embeddedImages[attachment.contentID] = attachment;
+			}
+		};
+		
+		if( sanitizeHTML ) {
+			html = MailUtilities.sanitizeHTML(html, replacementImage);
+		}
+		
+		html = attributeRegexp.replaceAll(html) using ( match ) {
+			string name = match.capture(0);
+			string value = expandImage.invoke(match.capture(1));
+			return "${name}=\"${value}\"";
+		};
+		
+		html = cssUrlRegexp.replaceAll(html) using ( match ) {
+			string url = expandImage.invoke(match.capture(0));
+			return "url(${url})";
+		};
+		
+		return html;
+	}
+}
 
