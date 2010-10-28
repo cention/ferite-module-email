@@ -339,7 +339,7 @@ namespace MailUtilities{
 				string url = match.capture(0);
 				if( url == '' or evil_uri_regexp.match(url) or control_characters_regexp.match(url) )
 					return "url(${replace_image_url})";
-				return url;
+				return "url(${url})";
 			};
 			return style;
 		};
@@ -507,5 +507,64 @@ namespace MailUtilities{
 	}
 }
 
-
+namespace modifies String {
+	function toRichText( string s ) {
+		s = Regexp.replaceAll('&', s, '&amp;');
+		s = Regexp.replaceAll('  ', s, ' &nbsp;');
+		s = Regexp.replaceAll('<', s, '&lt;');
+		s = Regexp.replaceAll('>', s, '&gt;');
+		s = Regexp.replaceAll("\t", s, ' &nbsp; &nbsp;');
+		s = Regexp.replaceAll("[\r]?[\n]", s, '<br />');
+		return s;
+	}
+	function expandEmbeddedContent( string html, object errand, boolean showExternal, string replacementImage, boolean sanitizeHTML ) {
+		object attributeRegexp = new Regexp('(background|src)="([^"]*)"', 'i');
+		object cssUrlRegexp = new Regexp('url\s*\([\'"]*(.+?)[\'"]*\)', 'si');
+		object cidRegexp = new Regexp('^cid:([^"]+)');
+		
+		array embeddedImages = [];
+		
+		object expandImage = closure( string value ) {
+			object cidMatch = cidRegexp.match(value);
+			if( cidMatch ) {
+				string contentID = '<' + cidMatch.capture(0) + '>';
+				if( embeddedImages.keyExists(contentID) ) {
+					object attachment = embeddedImages[contentID];
+					value = uriForApplicationAction("workflow/-/errand/${errand.id}/attachment/${attachment.id}");
+				} else {
+					value = replacementImage;
+				}
+			} else {
+				if( not showExternal ) {
+					value = replacementImage;
+				}
+			}
+			return value;
+		};
+		
+		
+		errand.mail.attachments.each() using ( attachment ) {
+			if( attachment.contentID ) {
+				embeddedImages[attachment.contentID] = attachment;
+			}
+		};
+		
+		if( sanitizeHTML ) {
+			html = MailUtilities.sanitizeHTML(html, replacementImage);
+		}
+		
+		html = attributeRegexp.replaceAll(html) using ( match ) {
+			string name = match.capture(0);
+			string value = expandImage.invoke(match.capture(1));
+			return "${name}=\"${value}\"";
+		};
+		
+		html = cssUrlRegexp.replaceAll(html) using ( match ) {
+			string url = expandImage.invoke(match.capture(0));
+			return "url(${url})";
+		};
+		
+		return html;
+	}
+}
 
