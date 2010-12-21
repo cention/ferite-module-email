@@ -89,12 +89,12 @@ namespace CampaignDelivery {
 	function updateReport( object c , array successful, array unsuccessful) {
 
 		object report;
-		number progress;
+		//number progress;
 
 		report = ((c.report) ? c.report : (new Workflow.CampaignReport()));
 		successful = successful.append(report.sentEmailAddress);
 
-		progress = (((successful.size() * 1.0) / c.emailList.size()) * 100).round();
+		//progress = (((successful.size() * 1.0) / c.emailList.size()) * 100).round();
 		//Console.println(""+successful.size() +"/"+ totalAddress +"*" +"100");
 		//Console.println("progress is: "+progress);
 		report.setValue( 'sentEmailAddress', successful );
@@ -103,7 +103,7 @@ namespace CampaignDelivery {
 		report.setValue('emailSent',successful.size());
 
 		c.setValue( 'report',report );
-		c.setValue('progress',progress);
+		//c.setValue('progress',progress);
 		c.save();
 
 
@@ -145,7 +145,7 @@ namespace CampaignDelivery {
 		array tmp;
 		string imageTrackingUrl="";
 		string imageTrackingCode="";
-
+		number progress = 0;
 
 
 		if ( c.email.onlineVersion ) {
@@ -215,6 +215,11 @@ namespace CampaignDelivery {
 					
 	
 					sendCount ++;
+					
+					progress = (((idx * 1.0) / c.emailList.size()) * 100).round();
+					c.setValue('progress',progress);
+					c.save();
+
 					idx ++;
 					if ( idx >= size ) break; 
 	
@@ -227,7 +232,9 @@ namespace CampaignDelivery {
 				}
 	
 			}
-
+					progress = (((idx * 1.0) / c.emailList.size()) * 100).round();
+					c.setValue('progress',progress);
+					c.save();
 		}
 		handle{		
 		
@@ -299,6 +306,9 @@ namespace CampaignDelivery {
 	
 			Console.println ( "[=====================================]");
 			CampaignDelivery.walkCampaign(c);
+
+			c.setValue('activated', false);
+			c.save();
 	
 		};
 
