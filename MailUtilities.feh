@@ -508,6 +508,9 @@ namespace MailUtilities{
 }
 
 namespace modifies String {
+	function toPlainText( string s ) {
+		return Mail.HTML.stripHTML(s);
+	}
 	function toRichText( string s ) {
 		s = Regexp.replaceAll('&', s, '&amp;');
 		s = Regexp.replaceAll('  ', s, ' &nbsp;');
