@@ -58,29 +58,29 @@ namespace MailUtilities{
 		}
 	}
 
-	function sendMessage( object connection, object message )
-		return .sendMessage( connection, MailUtilities.selectMailServer(), message, 0 );
+	function sendMessage( object connection, object message, object logClosure )
+		return .sendMessage(connection, MailUtilities.selectMailServer(), message, 0, logClosure);
 
-	function sendMessage( object connection, array server, object message, number try ) {
-		if ( try > MailUtilities.failSafeTry() ) 
+	function sendMessage( object connection, array server, object message, number try, object logClosure ) {
+		if( try > MailUtilities.failSafeTry() ) 
 			return false;
 
 		if( server ) {
 			// Workaround for uw-imap bug
-			log(" ---> Send attempt [$try] for server $server");
-			if( connection.sendMessage( server['host'], server['username'], server['password'], server['ssl'], message ) ) {
+			logClosure.invoke(" ---> Send attempt [$try] for server $server");
+			if( connection.sendMessage(server['host'], server['username'], server['password'], server['ssl'], message) ) {
 				return true;
 			}
 		}
 
 		try ++;
-		return MailUtilities.sendMessage( connection, server, message, try );
+		return MailUtilities.sendMessage(connection, server, message, try, logClosure);
 	}
 
-	function setOutgoingHeader( object message ,string ReturnPath) {
-		message.setOutgoingHeader( 'Return-Path', ReturnPath );
-		message.setOutgoingHeader( 'User-Agent', "Ferite Cmail-module (www.ferite.org)" );
-		message.setOutgoingHeader( 'X-Mailer', "CentionContactCenter/3.0 (www.cention.se)" );
+	function setOutgoingHeader( object message, string returnPath ) {
+		message.setOutgoingHeader('Return-Path', returnPath);
+		message.setOutgoingHeader('User-Agent', "Ferite Cmail-module (www.ferite.org)");
+		message.setOutgoingHeader('X-Mailer', "CentionContactCenter/3.0 (www.cention.se)");
 		return message;
 	}
 
