@@ -9,7 +9,6 @@
 
 		<list type="source">
 			<file name="MailUtilities.feh" />
-			<file name="sendCampaignEmail.fe" />
 		</list>
 	</collection>
 </yard>
