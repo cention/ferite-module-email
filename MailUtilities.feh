@@ -517,7 +517,7 @@ namespace modifies String {
 		s = Regexp.replaceAll('<', s, '&lt;');
 		s = Regexp.replaceAll('>', s, '&gt;');
 		s = Regexp.replaceAll("\t", s, ' &nbsp; &nbsp;');
-		s = Regexp.replaceAll("[\r]?[\n]", s, '<br />');
+		s = Regexp.replaceAll("\r\n|\r|\n", s, '<br/>');
 		return s;
 	}
 	function expandEmbeddedContent( string html, object errand, boolean showExternal, string replacementImage, boolean sanitizeHTML ) {
