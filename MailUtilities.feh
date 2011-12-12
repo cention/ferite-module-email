@@ -130,8 +130,15 @@ namespace MailUtilities{
 
 			}
 		handle{
-			Console.println ( "error sending mail" + err.str );
+			Console.println( "error sending mail" + err.str );
 			return false;
+		}
+	}
+	
+	object sanitizeHTMLdebugOutput;
+	function sanitizeHTMLdebug( string text ) {
+		if( .sanitizeHTMLdebugOutput ) {
+			.sanitizeHTMLdebugOutput.invoke(text);
 		}
 	}
 	
@@ -149,6 +156,7 @@ namespace MailUtilities{
 		string old_html;
 		do {
 			old_html = html;
+			.sanitizeHTMLdebug("Running _sanitizeHTML()...");
 			html = MailUtilities._sanitizeHTML(html, replace_image_url);
 		} while( html != old_html );
 		return html;
@@ -172,7 +180,7 @@ namespace MailUtilities{
 			'plaintext',
 			// <param> is used to define parameters or variables for an object or applet element.
 			// These should be removed when we remove <applet> and <object> with their content but I have added it here just in case.
-			'param'
+			'param',
 			// <marquee> creates a scrolling display.
 			// Squirrelmail blocks this but besides from it being very annoying I can't really see a reason for blocking this.
 			// I think we should leave the HTML as intact as possible and only remove things which adds a security threat.
@@ -180,11 +188,13 @@ namespace MailUtilities{
 			// <meta> provides metadata about the HTML document.
 			// Squirrelmail blocks this but since we are going to display the content within an <iframe> I believe keeping
 			// these tags could be a good idea in case the the document we are displaying uses another character encoding.
-			//'meta',
+			'meta',
 			// Squirrelmail blocks <html> and <head> but since we are as said above displaying the content within an <iframe>
 			// keeping these two makes sense.
-			//'html',
-			//'head'
+			'html',
+			'body',
+			'form',
+			'input'
 		];
 	
 		array remove_tags_and_content = [
@@ -207,7 +217,9 @@ namespace MailUtilities{
 			// I do not see the harm in this tag but Squirrelmail blocks it and I trust the Squirrelmail developers.
 			'xmp',
 			// <xml>
-			'xml'
+			'xml',
+			'head',
+			'style'
 		];
 	
 		array remove_attributes = [
@@ -224,8 +236,10 @@ namespace MailUtilities{
 	
 		object evil_uri_regexp = new Regexp('((.*)(script|mocha|about):(.*))', 'i');
 	
-		object tag_regexp = new Regexp('<[\s]*([a-z]+)([^>]*?)(/)?>', 'i');
-		object style_tag_regexp = new Regexp('<[\s]*style([^>]*)>(.*?)<[\s]*(/)[\s]*style[^>]*>', 'i');
+		//object tag_regexp = new Regexp('<[\s]*([a-z]+)([^>]*?)(/)?>', 'i');
+		object tag_regexp = new Regexp('<[\s]*([a-z]+)((?:\s+[a-z]+(?:\s*=\s*(?:".*?"|\'.*?\'|[^\'">\s]+))?)+\s*|\s*)/?>', 'i');
+		// Tobias 2011-12-09: Block <style> tags until we've implemented a good parser.
+		//object style_tag_regexp = new Regexp('<[\s]*style([^>]*)>(.*?)<[\s]*(/)[\s]*style[^>]*>', 'i');
 	
 		object attribute_type_1_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?"([^"]*)"', 'i'); // double quotes, href="http://www.cention.se"
 		object attribute_type_2_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?\'([^"]*)\'', 'i'); // Single quotes, href='http://www.cention.se'
@@ -240,7 +254,7 @@ namespace MailUtilities{
 			array matches = Regexp.matchAll(regexp, value);
 			array replacements = [];
 			matches.each() using ( match ) {
-				number entity = (hex ? match.capture(0).hexToNumber() : match.capture(0));
+				number entity = (hex ? match.capture(0).hexToNumber() : match.capture(0).toNumber());
 				string replacement = String.numberToByte(entity);
 				value = Regexp.replaceAll(match.match(), value, replacement);
 			};
@@ -302,25 +316,33 @@ namespace MailUtilities{
 			];
 		
 			// Remove NUL
+			.sanitizeHTMLdebug("Removing NUL characters...");
 			value = Regexp.replaceAll("\0", value, "");
 		
 			// Translate all dangerous Unicode or Shift_JIS characters which are accepted by
 			// IE as regular characters.
+			.sanitizeHTMLdebug("Translate dangerous Unicode and Shift_JIS characters...");
 			dangerous_characters.map() using ( character, replacement ) {
 				value = Regexp.replaceAll(character, value, replacement);
 			};
 		
 			// Escapes are useful for special characters like "{}[]()'&. In other cases they are
 			// used for XSS.
+			.sanitizeHTMLdebug("Remove escapes...");
 			value = Regexp.replaceAll("(\\\\)([a-zA-Z]{1})", value, '\2');
 		
 			old_value = value;
 		
+			.sanitizeHTMLdebug("Checking for & and escapes...");
 			if( Regexp.match('&', value) or Regexp.match("\\\\", value) ) {
 				boolean match;
+				.sanitizeHTMLdebug("Found.");
 				do {
+					.sanitizeHTMLdebug("Translate first type of entities...");
 					match = translate_entitites.invoke(value /* passed by reference */, '&#0*(\d+);*', false);
+					.sanitizeHTMLdebug("Translate second type of entities...");
 					match = translate_entitites.invoke(value /* passed by reference */, '&#x0*((\d|[a-fA-F])+);*', true);
+					.sanitizeHTMLdebug("Translate third type of entities...");
 					match = translate_entitites.invoke(value /* passed by reference */, '\\\\(\d+)', true);
 				} while ( match == true );
 			}
@@ -333,8 +355,11 @@ namespace MailUtilities{
 		object fix_style = closure( string style ) {
 			object import_regexp = new Regexp('^\s*(@import.*)$', 'mi');
 			object url_regexp = new Regexp('url\s*\([\'"]*(.+)[\'"]*\)', 'si');
+			.sanitizeHTMLdebug("Removing comments...");
 			style = Regexp.replaceAll('(\/\*.*?\*\/)', style, ''); // Remove comments.
+			.sanitizeHTMLdebug("Removing @import...");
 			style = import_regexp.replaceAll(style, '');
+			.sanitizeHTMLdebug("Making urls safe...");
 			style = url_regexp.replaceAll(style) using ( match ) {
 				string url = match.capture(0);
 				if( url == '' or evil_uri_regexp.match(url) or control_characters_regexp.match(url) )
@@ -353,13 +378,16 @@ namespace MailUtilities{
 		control_characters_regexp = new Regexp("\\\\(${control_characters.join('|')})");
 	
 		// Remove Netscape's Javascript entitites like: &{alert('boo')};
+		.sanitizeHTMLdebug("Removing Netscape's Javascript entitites...");
 		html = Regexp.replaceAll('&{.*?};', html, '');
 
+		.sanitizeHTMLdebug("Removing tags and their content...");
 		remove_tags_and_content.each() using ( tag ) {
 			object start_tag_r = new Regexp("<[\s]*${tag}[^>]*>", "i");
 			object tag_r = new Regexp("<[\s]*(/)?[\s]*${tag}[^>]*>", "i");
 			object start_tag_match = null;
 		
+			.sanitizeHTMLdebug("Searching for start tag (${tag})...");
 			while( (start_tag_match = start_tag_r.match(html)) ) {
 				string  part = html[start_tag_match.end()..];
 				number  start_tags = 0;
@@ -367,21 +395,36 @@ namespace MailUtilities{
 				boolean tag_end_found = false;
 				object  tag_match = null;
 			
+				.sanitizeHTMLdebug("Searching for start or end tag (${tag})...");
 				while( (tag_match = tag_r.match(part)) ) {
 					array captures = tag_match.captures();
 				
+					.sanitizeHTMLdebug("Match: ${tag_match.match()}");
+					.sanitizeHTMLdebug("Captures: ${captures}");
+				
 					tag_end += tag_match.end();
 				
+					.sanitizeHTMLdebug("Checking if an end tag has been found (${tag})...");
 					if( captures.size() > 0 and captures[0] == '/' ) {
+						.sanitizeHTMLdebug("End tag found (${tag}).");
 						if( start_tags == 0 ) {
 							number start = start_tag_match.start() - 1;
 							number end = start_tag_match.end() + tag_end;
 							string new_html;
-							new_html += html[..start];
+							.sanitizeHTMLdebug("Constructing new HTML...");
+							.sanitizeHTMLdebug("Start: ${start}");
+							.sanitizeHTMLdebug("End: ${end}");
+							.sanitizeHTMLdebug("HTML length: ${html.length()}");
+							if( start > 0 ) {
+								new_html += html[..start];
+							}
 							if( html.length() > end ) {
 								new_html += html[end..];
 							}
 							html = new_html;
+							//if( tag == 'style' ) {
+							//	.sanitizeHTMLdebug(html);
+							//}
 							tag_end_found = true;
 							break;
 						} else {
@@ -406,11 +449,14 @@ namespace MailUtilities{
 			}
 		};
 	
+		.sanitizeHTMLdebug("Removing tags...");
 		remove_tags.each() using ( tag ) {
 			object r = new Regexp("<[\s]*(/)?[\s]*${tag}[^>]*>", "i");
+			.sanitizeHTMLdebug("Removing tags {${tag}}...");
 			html = r.replaceAll(html, "");
 		};
 	
+		.sanitizeHTMLdebug("Walking tags...");
 		html = tag_regexp.replaceAll(html) using ( tag_match ) {
 			string tag;
 			string end;
@@ -419,19 +465,30 @@ namespace MailUtilities{
 		
 			tag = tag_match.capture(0);
 			end = tag_match.capture(2);
+			
+			.sanitizeHTMLdebug("Tag: ${tag}");
+			.sanitizeHTMLdebug("End: ${end}");
 		
+			.sanitizeHTMLdebug("Matching attributes (first way)...");
 			attributes = attributes.append(attribute_type_1_regexp.matchAll(tag_match.capture(1)));
+			.sanitizeHTMLdebug("Matching attributes (second way)...");
 			attributes = attributes.append(attribute_type_2_regexp.matchAll(tag_match.capture(1)));
 		
+			.sanitizeHTMLdebug("Walking attributes...");
 			attributes.each() using ( attribute_match ) {
 				string name = attribute_match.capture(0);
 				string value = attribute_match.capture(1);
 			
 				boolean skip_attribute = false;
 			
+				.sanitizeHTMLdebug("Name: ${name}");
+				.sanitizeHTMLdebug("Value: ${value}");
+			
+				.sanitizeHTMLdebug("Checking if attribute (${name}) is in list of attributes that should be removed...");
 				remove_attributes.each() using ( remove_attribute ) {
 					object r = new Regexp(remove_attribute, 'i');
 					if( r.match(name) ) {
+						.sanitizeHTMLdebug("Attribute '${name}' matched '${remove_attribute}'.");
 						skip_attribute = true;
 						return false; // break
 					}
@@ -493,6 +550,9 @@ namespace MailUtilities{
 				end);
 		};
 	
+		/* Tobias 2011-12-09:
+		 * We now remove <style> tags instead of fixing them until we've 
+		 * implemented a good parser that can fix them.
 		html = style_tag_regexp.replaceAll(html) using ( match ) {
 			string attributes = match.capture(0);
 			string content = match.capture(1);
@@ -502,6 +562,7 @@ namespace MailUtilities{
 				content = '';
 			return '<style {0:attributes}>{1:content}</style>'.expand(attributes, content);
 		};
+		*/
 	
 		return html;
 	}
@@ -555,7 +616,7 @@ namespace modifies String {
 		if( sanitizeHTML ) {
 			html = MailUtilities.sanitizeHTML(html, replacementImage);
 		}
-		
+
 		html = attributeRegexp.replaceAll(html) using ( match ) {
 			string name = match.capture(0);
 			string value = expandImage.invoke(match.capture(1));
