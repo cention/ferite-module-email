@@ -314,7 +314,10 @@ namespace MailUtilities{
 				"\xCA\x80" => 'r', /* R UNICODE IPA Extension */
 				"\xC9\xB4" => 'n'  /* N UNICODE IPA Extension */
 			];
-		
+			
+			// Remove DOCTYPE
+			value = Regexp.replaceAll("<!DOCTYPE[^>]*>", value, "");
+			
 			// Remove NUL
 			.sanitizeHTMLdebug("Removing NUL characters...");
 			value = Regexp.replaceAll("\0", value, "");
