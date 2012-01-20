@@ -154,11 +154,11 @@ namespace MailUtilities{
 		// In order to handle HTML that looks like '<scr<script>Kiddies</script>ipt> are clever buggers</script>'
 		// the sanitization is run until no change has been made.
 		string old_html;
-		do {
+		//do {
 			old_html = html;
 			.sanitizeHTMLdebug("Running _sanitizeHTML()...");
 			html = MailUtilities._sanitizeHTML(html, replace_image_url);
-		} while( html != old_html );
+		//} while( html != old_html );
 		return html;
 	}
 	
