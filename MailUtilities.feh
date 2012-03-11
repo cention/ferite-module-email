@@ -59,21 +59,26 @@ namespace MailUtilities{
 	}
 
 	function sendMessage( object connection, object message, object logClosure )
-		return .sendMessage(connection, MailUtilities.selectMailServer(), message, 0, logClosure);
+		return .sendMessage(connection, MailUtilities.selectMailServer(), message, 1, logClosure);
 
 	function sendMessage( object connection, array server, object message, number try, object logClosure ) {
 		if( try > MailUtilities.failSafeTry() ) 
 			return false;
 
 		if( server ) {
-			// Workaround for uw-imap bug
-			logClosure.invoke(" ---> Send attempt [$try] for server $server");
+			if( logClosure ) {
+				logClosure.invoke(" ---> Send attempt [$try] for server $server");
+			}
+			// We try to send the message twice to workaround an uw-imap bug
 			if( connection.sendMessage(server['host'], server['username'], server['password'], server['ssl'], message) ) {
+				return true;
+			}
+			if( connection.sendMessage(server['host'] + '/smtp/novalidate-cert', server['username'], server['password'], server['ssl'], message) ) {
 				return true;
 			}
 		}
 
-		try ++;
+		try++;
 		return MailUtilities.sendMessage(connection, server, message, try, logClosure);
 	}
 
