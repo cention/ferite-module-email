@@ -320,9 +320,6 @@ namespace MailUtilities{
 				"\xC9\xB4" => 'n'  /* N UNICODE IPA Extension */
 			];
 			
-			// Remove DOCTYPE
-			value = Regexp.replaceAll("<!DOCTYPE[^>]*>", value, "");
-			
 			// Remove NUL
 			.sanitizeHTMLdebug("Removing NUL characters...");
 			value = Regexp.replaceAll("\0", value, "");
@@ -346,8 +343,9 @@ namespace MailUtilities{
 				boolean match;
 				.sanitizeHTMLdebug("Found.");
 				do {
-					.sanitizeHTMLdebug("Translate first type of entities...");
-					match = translate_entitites.invoke(value /* passed by reference */, '&#0*(\d+);*', false);
+					// Tobias 2013-01-23: The first entity translation does strange things with the text encoding of the content so it has temporarily been disabled.
+					//.sanitizeHTMLdebug("Translate first type of entities...");
+					//match = translate_entitites.invoke(value /* passed by reference */, '&#0*(\d+);*', false);
 					.sanitizeHTMLdebug("Translate second type of entities...");
 					match = translate_entitites.invoke(value /* passed by reference */, '&#x0*((\d|[a-fA-F])+);*', true);
 					.sanitizeHTMLdebug("Translate third type of entities...");
@@ -384,6 +382,9 @@ namespace MailUtilities{
 			control_characters[] = i;
 	
 		control_characters_regexp = new Regexp("\\\\(${control_characters.join('|')})");
+
+		// Remove DOCTYPE
+		html = Regexp.replaceAll("<!DOCTYPE[^>]*>", html, "");
 	
 		// Remove Netscape's Javascript entitites like: &{alert('boo')};
 		.sanitizeHTMLdebug("Removing Netscape's Javascript entitites...");
