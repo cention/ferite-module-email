@@ -83,7 +83,7 @@ namespace MailUtilities{
 	}
 
 	function setOutgoingHeader( object message, string returnPath ) {
-		message.setOutgoingHeader('Return-Path', returnPath);
+		// Tobias 2013-08-21: Return-Path header is now set by the cmail module.
 		message.setOutgoingHeader('User-Agent', "Ferite Cmail-module (www.ferite.org)");
 		message.setOutgoingHeader('X-Mailer', "CentionContactCenter/3.0 (www.cention.se)");
 		return message;
