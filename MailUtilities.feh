@@ -82,6 +82,57 @@ namespace MailUtilities{
 		return MailUtilities.sendMessage(connection, server, message, try, logClosure);
 	}
 
+	function rawSend( string from, string to, string content, object logClosure ) {
+		string host;
+		object connection;
+		array list;
+		array hosts;
+		boolean success = false;
+
+		object writeRead = closure( object connection, string message ) {
+			logClosure.invoke('   (write) ' + message);
+			connection.writeln(message);
+			logClosure.invoke('   (read)  ' + connection.readln().trim("\r\n"));
+		};
+
+		list = to.toArray('@');
+		hosts = DNS.getMX(list[1]);
+		hosts[] = list[1];
+
+		hosts.each() using ( host ) {
+			object connection;
+			logClosure.invoke("  - Connecting to '${host}'...");
+			connection = Network.TCP.connect(host, 25, Network.AF_IPV4);
+			if( connection ) {
+				connection.setEndOfLine("\r\n");
+
+				monitor {
+					logClosure.invoke('   (read)  ' + connection.readln().trim("\r\n"));
+
+					writeRead.invoke(connection, "HELO " + Network.getHostname());
+					writeRead.invoke(connection, "MAIL FROM: <${from}>");
+					writeRead.invoke(connection, "RCPT TO: <${to}>");
+					writeRead.invoke(connection, "DATA");
+
+					connection.write(content);
+					connection.flush();
+
+					writeRead.invoke(connection, ".");
+					writeRead.invoke(connection, "QUIT");
+
+					success = true;
+					return false; // break
+				} handle {
+					logClosure.invoke("  !  " + err.str.trim(" \r\n"));
+				}
+			} else {
+				logClosure.invoke("  ! Could not connect to '${host}'");
+			}
+		};
+
+		return success;
+	}
+
 	function setOutgoingHeader( object message, string returnPath ) {
 		message.setOutgoingHeader('Return-Path', returnPath);
 		message.setOutgoingHeader('User-Agent', "Ferite Cmail-module (www.ferite.org)");
