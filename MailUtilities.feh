@@ -88,16 +88,34 @@ namespace MailUtilities{
 		array list;
 		array hosts;
 		boolean success = false;
+		object r = new Regexp('^([0-9]+) .*');
 
-		object writeRead = closure( object connection, string message ) {
-			logClosure.invoke('   (write) ' + message);
+		object analyze = closure( string response, number requiredCode ) {
+			object match = r.match(response);
+			if( match ) {
+				number responseCode = match.capture(0).toNumber();
+				if( responseCode != requiredCode ) {
+					raise new Error("Response contained code ${responseCode} but code ${requiredCode} is required.");
+				}
+			} else {
+				raise new Error('Response did not match required pattern.');
+			}
+		};
+
+		object writeRead = closure( object connection, string message, number requiredCode ) {
+			string response;
+			logClosure.invoke('    (write) ' + message);
 			connection.writeln(message);
-			logClosure.invoke('   (read)  ' + connection.readln().trim("\r\n"));
+			response = connection.readln().trim("\r\n");
+			logClosure.invoke('    (read)  ' + response);
+			requiredCode > 0 and analyze.invoke(response, requiredCode);
 		};
 
 		list = to.toArray('@');
 		hosts = DNS.getMX(list[1]);
 		hosts[] = list[1];
+
+		logClosure.invoke("  - SMTP: " + hosts.join(', '));
 
 		hosts.each() using ( host ) {
 			object connection;
@@ -107,23 +125,25 @@ namespace MailUtilities{
 				connection.setEndOfLine("\r\n");
 
 				monitor {
-					logClosure.invoke('   (read)  ' + connection.readln().trim("\r\n"));
+					string response = connection.readln().trim("\r\n");
+					logClosure.invoke('    (read)  ' + response);
+					analyze.invoke(response, 220);
 
-					writeRead.invoke(connection, "HELO " + Network.getHostname());
-					writeRead.invoke(connection, "MAIL FROM: <${from}>");
-					writeRead.invoke(connection, "RCPT TO: <${to}>");
-					writeRead.invoke(connection, "DATA");
+					writeRead.invoke(connection, "HELO " + Network.getHostname(), 250);
+					writeRead.invoke(connection, "MAIL FROM: <${from}>", 250);
+					writeRead.invoke(connection, "RCPT TO: <${to}>", 250);
+					writeRead.invoke(connection, "DATA", 354);
 
 					connection.write(content);
 					connection.flush();
 
-					writeRead.invoke(connection, ".");
-					writeRead.invoke(connection, "QUIT");
+					writeRead.invoke(connection, ".", 250);
+					writeRead.invoke(connection, "QUIT", 0);
 
 					success = true;
 					return false; // break
 				} handle {
-					logClosure.invoke("  !  " + err.str.trim(" \r\n"));
+					logClosure.invoke("  ! " + err.str.trim(" \r\n"));
 				}
 			} else {
 				logClosure.invoke("  ! Could not connect to '${host}'");
