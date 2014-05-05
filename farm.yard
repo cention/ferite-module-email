@@ -2,7 +2,7 @@
 <yard name="cention_email">
 
 	<property id="name" value="cention-email-support" />
-	<property id="version" value="3.2" />
+	<property id="version" value="3.6.0" />
 	
 	<collection id="email-support">
 		<property type="prefix" value="$(FeriteModuleSourceDir)" />  
