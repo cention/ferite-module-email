@@ -641,7 +641,7 @@ namespace modifies String {
 		s = Regexp.replaceAll("\r\n|\r|\n", s, '<br/>');
 		return s;
 	}
-	function expandEmbeddedContent( string html, object errand, boolean showExternal, string replacementImage, boolean sanitizeHTML ) {
+	function expandEmbeddedContent( string html, object o, boolean showExternal, string replacementImage, boolean sanitizeHTML ) {
 		object attributeRegexp = new Regexp('(background|src)="([^"]*)"', 'i');
 		object cssUrlRegexp = new Regexp('url\s*\([\'"]*(.+?)[\'"]*\)', 'si');
 		object cidRegexp = new Regexp('^cid:([^"]+)');
@@ -654,7 +654,15 @@ namespace modifies String {
 				string contentID = '<' + cidMatch.capture(0) + '>';
 				if( embeddedImages.keyExists(contentID) ) {
 					object attachment = embeddedImages[contentID];
-					value = uriForApplicationAction("workflow/-/errand/${errand.id}/attachment/${attachment.id}");
+					if( o instanceof Workflow.Errand ) {
+						value = uriForApplicationAction("workflow/-/errand/${o.id}/attachment/${attachment.id}");
+					} else if( o instanceof Workflow.ExternalExpertQuery ) {
+						value = uriForApplicationAction("errands/externalexpert/list/-/question/${o.id}/attachment/${attachment.id}");
+					} else if( o instanceof Workflow.ExternalExpertAnswer ) {
+						value = uriForApplicationAction("errands/externalexpert/list/-/answer/${o.id}/attachment/${attachment.id}");
+					} else {
+						value = replacementImage;
+					}
 				} else {
 					value = replacementImage;
 				}
@@ -667,7 +675,7 @@ namespace modifies String {
 		};
 		
 		
-		errand.mail.attachments.each() using ( attachment ) {
+		o.mail.attachments.each() using ( attachment ) {
 			if( attachment.contentID ) {
 				embeddedImages[attachment.contentID] = attachment;
 			}
