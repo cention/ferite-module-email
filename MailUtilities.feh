@@ -23,10 +23,12 @@ namespace MailUtilities {
 	 */
 	array serverList;
 	function selectMailServer() {
-		monitor {
-			include('/cention/etc/smtp-config.feh');
-		} handle {
-			.serverList = [];
+		if( not .serverList ) {
+			monitor {
+				include('/cention/etc/smtp-config.feh');
+			} handle {
+				.serverList = [];
+			}
 		}
 		if( not .serverList ) {
 			.serverList[] = [ 'host' => 'localhost', 'username' => '', 'password' => '', 'ssl' => false ];
