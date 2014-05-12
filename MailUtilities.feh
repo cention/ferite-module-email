@@ -596,7 +596,9 @@ namespace MailUtilities {
 					}
 				
 					if( attribute_value_is_safe ) {
-						safe_attributes[] = [ 'name' => name, 'value' => value ];
+						safe_attributes[] = [ 'name' => name, 'value' => String.replace( value,'"',"&#34;") ];
+						//Style attribute is getting started from double quote so inside double 
+						// quote should be needed this &#34; means double quote.  
 					}
 				}
 			};
