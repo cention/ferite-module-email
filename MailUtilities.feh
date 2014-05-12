@@ -301,7 +301,8 @@ namespace MailUtilities {
 		//object style_tag_regexp = new Regexp('<[\s]*style([^>]*)>(.*?)<[\s]*(/)[\s]*style[^>]*>', 'i');
 	
 		object attribute_type_1_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?"([^"]*)"', 'i'); // double quotes, href="http://www.cention.se"
-		object attribute_type_2_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?\'([^"]*)\'', 'i'); // Single quotes, href='http://www.cention.se'
+		object attribute_type_2_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?\'([^\']*)\'', 'i'); // Single quotes, href='http://www.cention.se'
+			  // Modification for: style='font-family: "Verdana", "Sans sarif"'
 	
 		// If you are thinking about combining the attribute regular expressions into one please remember this.
 		// Example: name="va'lue"
