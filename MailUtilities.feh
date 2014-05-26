@@ -527,8 +527,8 @@ namespace MailUtilities {
 			array  attributes = [];
 			array  safe_attributes = [];
 		
-			tag = tag_match.capture(0);
-			end = tag_match.capture(2);
+			tag = tag_match.capture(0).toLower();;
+			end = tag_match.capture(2).toLower();
 			
 			.sanitizeHTMLdebug("Tag: ${tag}");
 			.sanitizeHTMLdebug("End: ${end}");
@@ -540,7 +540,7 @@ namespace MailUtilities {
 		
 			.sanitizeHTMLdebug("Walking attributes...");
 			attributes.each() using ( attribute_match ) {
-				string name = attribute_match.capture(0);
+				string name = attribute_match.capture(0).toLower();
 				string value = attribute_match.capture(1);
 			
 				boolean skip_attribute = false;
