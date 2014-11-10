@@ -13,7 +13,7 @@ namespace MailUtilities {
 	function seedRandomNumberGenerator {
 		if( not .seeded ) {
 			.seeded = true;
-			Math.srand(Date.GMTnow());
+			Math.srand(Date.now());
 		}
 	}
 
