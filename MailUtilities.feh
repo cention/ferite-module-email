@@ -5,57 +5,40 @@ uses 'console';
 uses 'math';
 
 global {	
-	number failSafeTry = 3;
+	number failSafeTry = 1;
 }
 
-namespace MailUtilities{
-	/**
-		This function select a random server from the  list of servers available in webframework.config 
-	**/
+namespace MailUtilities {
 	boolean seeded = false;
 	function seedRandomNumberGenerator {
 		if( not .seeded ) {
 			.seeded = true;
-			Math.srand(Date.GMTnow());
+			Math.srand(Date.now());
 		}
 	}
-	 
-	function selectMailServer(){
-		monitor{	
-			array serverList = [];
-			object r = new Regexp('^outbound\.mailserver\.(.*?)\.(.*)', 'i');
 
-			webframework.Config.byName('Outbound.Mailserver.*').each() using ( config ) {
-				object match = r.match(config.name.toLower());
-				if( match ) {
-					string server = match.capture(0).toLower();
-					string part = match.capture(1).toLower();
-					if( server and part ) {
-						if( not serverList.keyExists(server) ) {
-							serverList[server] = [ 'host' => 'localhost', 'username' => '', 'password' => '', 'ssl' => false ];
-						}
-						serverList[server][part] = (part == 'ssl' ?
-														(config.value.toLower() == 'yes' ? true : false) :
-														config.value);
-					}
-				}
-			};	
-			.seedRandomNumberGenerator();
-			return serverList[Math.randomNumber(0, serverList.size() - 1)];
+	/* Tobias 2013-11-18: The system's SMTP server(s) for regular mail sending (not Outbound)
+	 *                    is now configured in the file /cention/etc/smtp-config.feh.
+	 *                    If no configuration is made then the system defaults to using localhost.
+	 */
+	array serverList;
+	function selectMailServer() {
+		if( not .serverList ) {
+			monitor {
+				include('/cention/etc/smtp-config.feh');
+			} handle {
+				.serverList = [];
+			}
 		}
-		handle{
-			Console.println("Unable to select mail server: " + err.str);
+		if( not .serverList ) {
+			.serverList[] = [ 'host' => 'localhost', 'username' => '', 'password' => '', 'ssl' => false ];
 		}
-		return [];
+		.seedRandomNumberGenerator();
+		return .serverList[Math.randomNumber(0, .serverList.size() - 1)];
 	}
 
-	function failSafeTry(){
-		monitor{
-			return webframework.Config.byName('FailSafeTry')[0].value.toNumber();
-		}
-		handle{
-			return failSafeTry;
-		}
+	function failSafeTry() {
+		return failSafeTry;
 	}
 
 	function sendMessage( object connection, object message, object logClosure )
@@ -319,7 +302,7 @@ namespace MailUtilities{
 	
 		object attribute_type_1_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?"([^"]*)"', 'i'); // double quotes, href="http://www.cention.se"
 		object attribute_type_2_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?\'([^\']*)\'', 'i'); // Single quotes, href='http://www.cention.se'
-			  // Modification for: style='font-family: "Verdana", "Sans sarif";'
+			  // Modification for: style='font-family: "Verdana", "Sans sarif"'
 	
 		// If you are thinking about combining the attribute regular expressions into one please remember this.
 		// Example: name="va'lue"
@@ -664,7 +647,7 @@ namespace modifies String {
 		s = Regexp.replaceAll("\r\n|\r|\n", s, '<br/>');
 		return s;
 	}
-	function expandEmbeddedContent( string html, object errand, boolean showExternal, string replacementImage, boolean sanitizeHTML ) {
+	function expandEmbeddedContent( string html, object o, boolean showExternal, string replacementImage, boolean sanitizeHTML ) {
 		object attributeRegexp = new Regexp('(background|src)="([^"]*)"', 'i');
 		object cssUrlRegexp = new Regexp('url\s*\([\'"]*(.+?)[\'"]*\)', 'si');
 		object cidRegexp = new Regexp('^cid:([^"]+)');
@@ -677,7 +660,15 @@ namespace modifies String {
 				string contentID = '<' + cidMatch.capture(0) + '>';
 				if( embeddedImages.keyExists(contentID) ) {
 					object attachment = embeddedImages[contentID];
-					value = uriForApplicationAction("workflow/-/errand/${errand.id}/attachment/${attachment.id}");
+					if( o instanceof Workflow.Errand ) {
+						value = uriForApplicationAction("workflow/-/errand/${o.id}/attachment/${attachment.id}");
+					} else if( o instanceof Workflow.ExternalExpertQuery ) {
+						value = uriForApplicationAction("errands/externalexpert/list/-/question/${o.id}/attachment/${attachment.id}");
+					} else if( o instanceof Workflow.ExternalExpertAnswer ) {
+						value = uriForApplicationAction("errands/externalexpert/list/-/answer/${o.id}/attachment/${attachment.id}");
+					} else {
+						value = replacementImage;
+					}
 				} else {
 					value = replacementImage;
 				}
@@ -690,7 +681,7 @@ namespace modifies String {
 		};
 		
 		
-		errand.mail.attachments.each() using ( attachment ) {
+		o.mail.attachments.each() using ( attachment ) {
 			if( attachment.contentID ) {
 				embeddedImages[attachment.contentID] = attachment;
 			}
