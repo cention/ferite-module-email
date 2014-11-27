@@ -635,6 +635,15 @@ namespace MailUtilities {
 }
 
 namespace modifies String {
+	function escapeHTML( string s ) {
+		s = Regexp.replaceAll('&', s, '&amp;');
+		s = Regexp.replaceAll('<', s, '&lt;');
+		s = Regexp.replaceAll('>', s, '&gt;');
+		s = Regexp.replaceAll('"', s, '&quot;');
+		s = Regexp.replaceAll("'", s, '&#x27;');
+		s = Regexp.replaceAll('/', s, '&#x2F;');
+		return s;
+	}
 	function toPlainText( string s ) {
 		return Mail.HTML.stripHTML(s);
 	}
