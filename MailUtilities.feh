@@ -648,12 +648,14 @@ namespace modifies String {
 		return Mail.HTML.stripHTML(s);
 	}
 	function toRichText( string s ) {
-		s = Regexp.replaceAll('&', s, '&amp;');
-		s = Regexp.replaceAll('  ', s, ' &nbsp;');
-		s = Regexp.replaceAll('<', s, '&lt;');
-		s = Regexp.replaceAll('>', s, '&gt;');
-		s = Regexp.replaceAll("\t", s, ' &nbsp; &nbsp;');
-		s = Regexp.replaceAll("\r\n|\r|\n", s, '<br/>');
+		s = s.replace('&', '&amp;');
+		s = s.replace('  ', ' &nbsp;');
+		s = s.replace('<', '&lt;');
+		s = s.replace('>', '&gt;');
+		s = s.replace("\t", ' &nbsp; &nbsp;');
+		s = s.replace("\r\n", '<br/>');
+		s = s.replace("\r", '<br/>');
+		s = s.replace("\n", '<br/>');
 		return s;
 	}
 	function expandEmbeddedContent( string html, object o, boolean showExternal, string replacementImage, boolean sanitizeHTML ) {
