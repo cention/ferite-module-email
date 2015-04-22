@@ -23,6 +23,7 @@ namespace MailUtilities {
 	 */
 	array serverList;
 	function selectMailServer() {
+		array server;
 		if( not .serverList ) {
 			monitor {
 				include('/cention/etc/smtp-config.feh');
@@ -31,10 +32,16 @@ namespace MailUtilities {
 			}
 		}
 		if( not .serverList ) {
-			.serverList[] = [ 'host' => 'localhost', 'username' => '', 'password' => '', 'ssl' => false ];
+			.serverList[] = [ 'host' => 'localhost', 'username' => '', 'password' => '', 'ssl' => false, 'tls' => false ];
 		}
 		.seedRandomNumberGenerator();
-		return .serverList[Math.randomNumber(0, .serverList.size() - 1)];
+		server = .serverList[Math.randomNumber(0, .serverList.size() - 1)];
+		if( not server.keyExists('host') )     server['host'] = 'localhost';
+		if( not server.keyExists('username') ) server['username'] = '';
+		if( not server.keyExists('password') ) server['password'] = '';
+		if( not server.keyExists('ssl') )      server['ssl'] = false;
+		if( not server.keyExists('tls') )      server['tls'] = false;
+		return server;
 	}
 
 	function failSafeTry() {
@@ -56,7 +63,7 @@ namespace MailUtilities {
 			if( connection.sendMessage((server.keyExists('host') ? server['host'] : 'localhost'),
 			                           (server.keyExists('username') ? server['username'] : ''),
 			                           (server.keyExists('password') ? server['password'] : ''),
-			                           (server.keyExists('ssl' ? server['ssl'] : false),
+			                           (server.keyExists('ssl') ? server['ssl'] : false),
 			                           (server.keyExists('tls') ? server['tls'] : false),
 			                           message) )
 			{
@@ -65,7 +72,7 @@ namespace MailUtilities {
 			if( connection.sendMessage((server.keyExists('host') ? server['host'] : 'localhost') + '/smtp/novalidate-cert',
 			                           (server.keyExists('username') ? server['username'] : ''),
 			                           (server.keyExists('password') ? server['password'] : ''),
-			                           (server.keyExists('ssl' ? server['ssl'] : false),
+			                           (server.keyExists('ssl') ? server['ssl'] : false),
 			                           (server.keyExists('tls') ? server['tls'] : false),
 			                           message) )
 			{
