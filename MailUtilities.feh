@@ -53,10 +53,22 @@ namespace MailUtilities {
 				logClosure.invoke(" ---> Send attempt [$try] for server $server");
 			}
 			// We try to send the message twice to workaround an uw-imap bug
-			if( connection.sendMessage(server['host'], server['username'], server['password'], server['ssl'], message) ) {
+			if( connection.sendMessage((server.keyExists('host') ? server['host'] : 'localhost'),
+			                           (server.keyExists('username') ? server['username'] : ''),
+			                           (server.keyExists('password') ? server['password'] : ''),
+			                           (server.keyExists('ssl' ? server['ssl'] : false),
+			                           (server.keyExists('tls') ? server['tls'] : false),
+			                           message) )
+			{
 				return true;
 			}
-			if( connection.sendMessage(server['host'] + '/smtp/novalidate-cert', server['username'], server['password'], server['ssl'], message) ) {
+			if( connection.sendMessage((server.keyExists('host') ? server['host'] : 'localhost') + '/smtp/novalidate-cert',
+			                           (server.keyExists('username') ? server['username'] : ''),
+			                           (server.keyExists('password') ? server['password'] : ''),
+			                           (server.keyExists('ssl' ? server['ssl'] : false),
+			                           (server.keyExists('tls') ? server['tls'] : false),
+			                           message) )
+			{
 				return true;
 			}
 		}
