@@ -321,7 +321,10 @@ namespace MailUtilities {
 	
 		object attribute_type_1_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?"([^"]*)"', 'i'); // double quotes, href="http://www.cention.se"
 		object attribute_type_2_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?\'([^\']*)\'', 'i'); // Single quotes, href='http://www.cention.se'
-			  // Modification for: style='font-family: "Verdana", "Sans sarif"'
+		object attribute_type_3_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?([^\'">\s]+)', 'i'); // no quotes, href=http://www.cention.se
+
+		// Tobias 2015-08-13: I'm not sure where this comment belongs
+		// Modification for: style='font-family: "Verdana", "Sans sarif"'
 	
 		// If you are thinking about combining the attribute regular expressions into one please remember this.
 		// Example: name="va'lue"
@@ -456,7 +459,9 @@ namespace MailUtilities {
 			attributes = attributes.append(attribute_type_1_regexp.matchAll(tag_match.capture(1)));
 			.sanitizeHTMLdebug("Matching attributes (second way)...");
 			attributes = attributes.append(attribute_type_2_regexp.matchAll(tag_match.capture(1)));
-		
+			.sanitizeHTMLdebug("Matching attributes (third way)...");
+			attributes = attributes.append(attribute_type_3_regexp.matchAll(tag_match.capture(1)));
+
 			.sanitizeHTMLdebug("Walking attributes...");
 			attributes.each() using ( attribute_match ) {
 				string name = attribute_match.capture(0).toLower();
@@ -650,6 +655,136 @@ namespace MailUtilities {
 		}
 	
 		return value;
+	}
+
+	function returnPath() {
+		return .returnPath('');
+	}
+
+	function returnPath( string extra ) {
+		string returnPath;
+		if( F('return-path.automatic') ) {
+			returnPath = 'return-path' + (extra
+				? '+' + extra
+				: '') + '@' + Network.getHostname();
+		} else if( F('return-path') ) {
+			returnPath = F('return-path');
+		}
+		if( returnPath )
+			return new Mail.Address(returnPath);
+		return null;
+	}
+
+	function mailOriginToAddress( object mailOrigin ) {
+		if( mailOrigin ) {
+			monitor {
+				object address = new Mail.Address( mailOrigin.emailAddress );
+				address.name = mailOrigin.name;
+				Console.println("");
+				return address;
+			} handle {
+				return null;
+			}
+		}
+		return null;
+	}
+
+	function expandReceiptTemplate( object errand, string text ) {
+		text = Regexp.replaceAll('{ERRANDID}', text, "${errand.id}");
+		if( errand.mail and errand.mail.from ) {
+			text = Regexp.replaceAll('\[name\]', text, (errand.mail.from.name ? errand.mail.from.name : errand.mail.from.emailAddress));
+			text = Regexp.replaceAll('\[email\]', text, errand.mail.from.emailAddress);
+		}
+		return text;
+	}
+
+	function createReceiptMessageContent( object errand, string body, string htmlBody, object logClosure ) {
+		object text = new Mail.MessagePart();
+
+		body = MailUtilities.expandReceiptTemplate(errand, body);
+		body = body + "\n" + errand.toHistoryString(false, false);
+		body = Regexp.replaceAll("\r\n", body, "\n");
+		body = Regexp.replaceAll("\r", body, "\n");
+		body = Regexp.replaceAll("\n", body, "\r\n");
+
+		text.encoding = Mail.Encoding.ENCQUOTEDPRINTABLE;
+		text.type = Mail.Mime.TYPETEXT;
+		text.subtype = "plain";
+		text.charset = "UTF-8";
+		text.content = Mail.Connection.bit8(body);
+
+		if( not htmlBody ) {
+			return text;
+		} else {
+			object content = new Mail.MessageMultiPart();
+			object alternative = new Mail.MessageMultiPart();
+			object html = new Mail.MessagePart();
+
+			string style;
+			string fontSize = (F('rich-text.default-font-size') ? F('rich-text.default-font-size') : '');
+			string fontFamily = (F('rich-text.default-font-family') ? F('rich-text.default-font-family') : '');
+
+			object img_regexp = new Regexp('src="[A-Za-z0-9\./:]*/admin/filearchive/preview?archive=[0-9]+/([0-9]+)"');
+			object cid_regexp = new Regexp('src="cid:([0-9]+)"');
+
+			array embeddedImages = [];
+
+			htmlBody = MailUtilities.expandReceiptTemplate(errand, htmlBody);
+			htmlBody = Regexp.replaceAll("\r\n", htmlBody, "\n");
+			htmlBody = Regexp.replaceAll("\r", htmlBody, "\n");
+			htmlBody = Regexp.replaceAll("\n", htmlBody, "\r\n");
+
+			htmlBody = img_regexp.replaceAll(htmlBody) using ( match ) {
+				return "src=\"cid:${match.capture(0)}\"";
+			};
+
+			if( fontSize )  style += "font-size:${fontSize};";
+			if( fontFamily) style += "font-family:${fontFamily};";
+
+			if( style )     style = ' style="{0}"'.expand(style);
+
+			html.encoding = Mail.Encoding.ENCQUOTEDPRINTABLE;
+			html.type = Mail.Mime.TYPETEXT;
+			html.subtype = "html";
+			html.charset = "UTF-8";
+			html.content = Mail.Connection.bit8('<html>' +
+				'<head>' +
+					'<meta http-equiv="Content-Type" content="text/html; charset=utf-8">' +
+				'</head>' +
+				'<body>' +
+					'<div{0}>'.expand(style) +
+						htmlBody + '<br />' +
+						Regexp.replaceAll("\n", errand.toHistoryString(false, false), '<br />') +
+					'</div>' +
+				'</body>' +
+			'</html>');
+
+			alternative.subtype = "alternative";
+			alternative.addPart(text);
+			alternative.addPart(html);
+
+			content.subtype = "related";
+			content.addPart(alternative);
+
+			cid_regexp.matchAll(htmlBody) using ( match ) {
+				string id = match.capture(0);
+				object archive = Workflow.AreaFileArchive.load(id.toNumber());
+				if( archive and not embeddedImages.keyExists(id) ) {
+					string folder = Workflow.AreaFileArchive.getImageArchiveArea(archive);
+					string filepath = (Config.CachePath - 'Cache/') + "Workflow/FileArchive/${folder}/" + archive.localName;
+					embeddedImages[id] = id;
+					if (Posix.stat(filepath) ) {
+						content.embedImage(id, filepath);
+					} else {
+						if( logClosure ) {
+							logClosure.invoke(" -----> ! Skipping embedded image '${archive.fileName}' (${filepath}) file not found on disk !");
+						}
+					}
+				}
+			};
+
+			return content;
+		}
 	}
 }
 
