@@ -1,0 +1,44 @@
+uses "tap";
+uses "MailUtilities";
+
+array tests = [
+	[ "Here & there",
+		"Here &amp; there" ],
+	[ "Here & there &",
+		"Here &amp; there &amp;" ],
+	[ "Here  there",
+		"Here &nbsp;there" ],
+	[ "Here  there  ",
+		"Here &nbsp;there &nbsp;" ],
+	[ "Here<there",
+		"Here&lt;there" ],
+	[ "Here<there<",
+		"Here&lt;there&lt;" ],
+	[ "Here>there",
+		"Here&gt;there" ],
+	[ "Here>there>",
+		"Here&gt;there&gt;" ],
+	[ "Here\tthere",
+		"Here &nbsp; &nbsp;there" ],
+	[ "Here\r\nthere",
+		"Here<br/>there" ],
+	[ "Here\r\nthere\r\n",
+		"Here<br/>there<br/>" ],
+	[ "Here\rthere",
+		"Here<br/>there" ],
+	[ "Here\rthere\r",
+		"Here<br/>there<br/>" ],
+	[ "Here\nthere",
+		"Here<br/>there" ],
+	[ "Here\nthere\n",
+		"Here<br/>there<br/>" ]
+];
+
+for (number i = 0; i < tests.size(); i++) {
+	string input = tests[i][0];
+	string want = tests[i][1];
+	string got = input.toRichText();
+	is (got, want, "$i: '$input'.toRichText() => $got");
+}
+
+done_testing();

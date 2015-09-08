@@ -321,7 +321,10 @@ namespace MailUtilities {
 	
 		object attribute_type_1_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?"([^"]*)"', 'i'); // double quotes, href="http://www.cention.se"
 		object attribute_type_2_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?\'([^\']*)\'', 'i'); // Single quotes, href='http://www.cention.se'
-			  // Modification for: style='font-family: "Verdana", "Sans sarif"'
+		object attribute_type_3_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?([^\'">\s]+)', 'i'); // no quotes, href=http://www.cention.se
+
+		// Tobias 2015-08-13: I'm not sure where this comment belongs
+		// Modification for: style='font-family: "Verdana", "Sans sarif"'
 	
 		// If you are thinking about combining the attribute regular expressions into one please remember this.
 		// Example: name="va'lue"
@@ -329,106 +332,6 @@ namespace MailUtilities {
 		//  capture 0: name
 		//  capture 1: va'lue 
 	
-		object translate_entitites = closure( string& value, string regexp, boolean hex ) {
-			array matches = Regexp.matchAll(regexp, value);
-			array replacements = [];
-			matches.each() using ( match ) {
-				number entity = (hex ? match.capture(0).hexToNumber() : match.capture(0).toNumber());
-				string replacement = String.numberToByte(entity);
-				value = Regexp.replaceAll(match.match(), value, replacement);
-			};
-			return (matches ? true : false);
-		};
-	
-		object fix_attribute_value = closure( string value ) {
-			string old_value = value;
-		
-			array dangerous_characters = [
-				'&#x029F;' => 'l', '&#0671;' => 'l', /* L UNICODE IPA Extension */
-				'&#x0280;' => 'r', '&#0640;' => 'r', /* R UNICODE IPA Extension */
-				'&#x0274;' => 'n', '&#0628;' => 'n', /* N UNICODE IPA Extension */
-				'&#xFF25;' => 'E', '&#65317;' => 'E', /* Unicode FULLWIDTH LATIN CAPITAL LETTER E */
-				'&#xFF45;' => 'e', '&#65349;' => 'e', /* Unicode FULLWIDTH LATIN SMALL LETTER E */
-				'&#xFF38;' => 'X', '&#65336;' => 'X', /* Unicode FULLWIDTH LATIN CAPITAL LETTER X */
-				'&#xFF58;' => 'x', '&#65368;' => 'x', /* Unicode FULLWIDTH LATIN SMALL LETTER X */
-				'&#xFF30;' => 'P', '&#65328;' => 'P', /* Unicode FULLWIDTH LATIN CAPITAL LETTER P */
-				'&#xFF50;' => 'p', '&#65360;' => 'p', /* Unicode FULLWIDTH LATIN SMALL LETTER P */
-				'&#xFF32;' => 'R', '&#65330;' => 'R', /* Unicode FULLWIDTH LATIN CAPITAL LETTER R */
-				'&#xFF52;' => 'r', '&#65362;' => 'r', /* Unicode FULLWIDTH LATIN SMALL LETTER R */
-				'&#xFF33;' => 'S', '&#65331;' => 'S', /* Unicode FULLWIDTH LATIN CAPITAL LETTER S */
-				'&#xFF53;' => 's', '&#65363;' => 's', /* Unicode FULLWIDTH LATIN SMALL LETTER S */
-				'&#xFF29;' => 'I', '&#65321;' => 'I', /* Unicode FULLWIDTH LATIN CAPITAL LETTER I */
-				'&#xFF49;' => 'i', '&#65353;' => 'i', /* Unicode FULLWIDTH LATIN SMALL LETTER I */
-				'&#xFF2F;' => 'O', '&#65327;' => 'O', /* Unicode FULLWIDTH LATIN CAPITAL LETTER O */
-				'&#xFF4F;' => 'o', '&#65359;' => 'o', /* Unicode FULLWIDTH LATIN SMALL LETTER O */
-				'&#xFF2E;' => 'N', '&#65326;' => 'N', /* Unicode FULLWIDTH LATIN CAPITAL LETTER N */
-				'&#xFF4E;' => 'n', '&#65358;' => 'n', /* Unicode FULLWIDTH LATIN SMALL LETTER N */
-				'&#xFF2C;' => 'L', '&#65324;' => 'L', /* Unicode FULLWIDTH LATIN CAPITAL LETTER L */
-				'&#xFF4C;' => 'l', '&#65356;' => 'l', /* Unicode FULLWIDTH LATIN SMALL LETTER L */
-				'&#xFF35;' => 'U', '&#65333;' => 'U', /* Unicode FULLWIDTH LATIN CAPITAL LETTER U */
-				'&#xFF55;' => 'u', '&#65365;' => 'u', /* Unicode FULLWIDTH LATIN SMALL LETTER U */
-				'&#x207F;' => 'n', '&#8319;' => 'n', /* Unicode SUPERSCRIPT LATIN SMALL LETTER N */
-				"\xEF\xBC\xA5" => 'E', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER E */ // in unicode this is some Chinese char range
-				"\xEF\xBD\x85" => 'e', /* Shift JIS FULLWIDTH LATIN SMALL LETTER E */
-				"\xEF\xBC\xB8" => 'X', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER X */
-				"\xEF\xBD\x98" => 'x', /* Shift JIS FULLWIDTH LATIN SMALL LETTER X */
-				"\xEF\xBC\xB0" => 'P', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER P */
-				"\xEF\xBD\x90" => 'p', /* Shift JIS FULLWIDTH LATIN SMALL LETTER P */
-				"\xEF\xBC\xB2" => 'R', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER R */
-				"\xEF\xBD\x92" => 'r', /* Shift JIS FULLWIDTH LATIN SMALL LETTER R */
-				"\xEF\xBC\xB3" => 'S', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER S */
-				"\xEF\xBD\x93" => 's', /* Shift JIS FULLWIDTH LATIN SMALL LETTER S */
-				"\xEF\xBC\xA9" => 'I', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER I */
-				"\xEF\xBD\x89" => 'i', /* Shift JIS FULLWIDTH LATIN SMALL LETTER I */
-				"\xEF\xBC\xAF" => 'O', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER O */
-				"\xEF\xBD\x8F" => 'o', /* Shift JIS FULLWIDTH LATIN SMALL LETTER O */
-				"\xEF\xBC\xAE" => 'N', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER N */
-				"\xEF\xBD\x8E" => 'n', /* Shift JIS FULLWIDTH LATIN SMALL LETTER N */
-				"\xEF\xBC\xAC" => 'L', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER L */
-				"\xEF\xBD\x8C" => 'l', /* Shift JIS FULLWIDTH LATIN SMALL LETTER L */
-				"\xEF\xBC\xB5" => 'U', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER U */
-				"\xEF\xBD\x95" => 'u', /* Shift JIS FULLWIDTH LATIN SMALL LETTER U */
-				"\xE2\x81\xBF" => 'n', /* Shift JIS FULLWIDTH SUPERSCRIPT N */
-				"\xCA\x9F" => 'l', /* L UNICODE IPA Extension */
-				"\xCA\x80" => 'r', /* R UNICODE IPA Extension */
-				"\xC9\xB4" => 'n'  /* N UNICODE IPA Extension */
-			];
-			
-			// Remove NUL
-			.sanitizeHTMLdebug("Removing NUL characters...");
-			value = Regexp.replaceAll("\0", value, "");
-		
-			// Translate all dangerous Unicode or Shift_JIS characters which are accepted by
-			// IE as regular characters.
-			.sanitizeHTMLdebug("Translate dangerous Unicode and Shift_JIS characters...");
-			dangerous_characters.map() using ( character, replacement ) {
-				value = Regexp.replaceAll(character, value, replacement);
-			};
-		
-			// Escapes are useful for special characters like "{}[]()'&. In other cases they are
-			// used for XSS.
-			.sanitizeHTMLdebug("Remove escapes...");
-			value = Regexp.replaceAll("(\\\\)([a-zA-Z]{1})", value, '\2');
-		
-			old_value = value;
-		
-			.sanitizeHTMLdebug("Checking for & and escapes...");
-			if( Regexp.match('&', value) or Regexp.match("\\\\", value) ) {
-				boolean match;
-				.sanitizeHTMLdebug("Found.");
-				do {
-					// Tobias 2013-01-23: The first entity translation does strange things with the text encoding of the content so it has temporarily been disabled.
-					//.sanitizeHTMLdebug("Translate first type of entities...");
-					//match = translate_entitites.invoke(value /* passed by reference */, '&#0*(\d+);*', false);
-					.sanitizeHTMLdebug("Translate second type of entities...");
-					match = translate_entitites.invoke(value /* passed by reference */, '&#x0*((\d|[a-fA-F])+);*', true);
-					.sanitizeHTMLdebug("Translate third type of entities...");
-					match = translate_entitites.invoke(value /* passed by reference */, '\\\\(\d+)', true);
-				} while ( match == true );
-			}
-		
-			return value;
-		};
 		
 		object control_characters_regexp = null;
 		
@@ -556,7 +459,9 @@ namespace MailUtilities {
 			attributes = attributes.append(attribute_type_1_regexp.matchAll(tag_match.capture(1)));
 			.sanitizeHTMLdebug("Matching attributes (second way)...");
 			attributes = attributes.append(attribute_type_2_regexp.matchAll(tag_match.capture(1)));
-		
+			.sanitizeHTMLdebug("Matching attributes (third way)...");
+			attributes = attributes.append(attribute_type_3_regexp.matchAll(tag_match.capture(1)));
+
 			.sanitizeHTMLdebug("Walking attributes...");
 			attributes.each() using ( attribute_match ) {
 				string name = attribute_match.capture(0).toLower();
@@ -581,7 +486,7 @@ namespace MailUtilities {
 					boolean attribute_value_is_safe = true;
 				
 					string old_value = value;
-					value = fix_attribute_value.invoke(value);
+					value = ._fix_attribute_value(value);
 				
 					switch( name ) {
 						case 'href':
@@ -641,7 +546,7 @@ namespace MailUtilities {
 		html = style_tag_regexp.replaceAll(html) using ( match ) {
 			string attributes = match.capture(0);
 			string content = match.capture(1);
-			content = fix_attribute_value.invoke(content);
+			content = ._fix_attribute_value(content);
 			content = fix_style.invoke(content);
 			if( control_characters_regexp.match(content) )
 				content = '';
@@ -650,6 +555,236 @@ namespace MailUtilities {
 		*/
 	
 		return html;
+	}
+
+	function _translate_entitites(string& value, string regexp, boolean hex){
+		array matches = Regexp.matchAll(regexp, value);
+		matches.each() using ( match ) {
+			number entity = (hex ? match.capture(0).hexToNumber() : match.capture(0).toNumber());
+			string replacement = String.numberToByte(entity);
+			value = String.replace(value, match.match(), replacement);
+		};
+		return (matches ? true : false);
+	}
+
+	function _fix_attribute_value(string value){
+		string old_value = value;
+		
+		array dangerous_characters = [
+			'&#x029F;' => 'l', '&#0671;' => 'l', /* L UNICODE IPA Extension */
+			'&#x0280;' => 'r', '&#0640;' => 'r', /* R UNICODE IPA Extension */
+			'&#x0274;' => 'n', '&#0628;' => 'n', /* N UNICODE IPA Extension */
+			'&#xFF25;' => 'E', '&#65317;' => 'E', /* Unicode FULLWIDTH LATIN CAPITAL LETTER E */
+			'&#xFF45;' => 'e', '&#65349;' => 'e', /* Unicode FULLWIDTH LATIN SMALL LETTER E */
+			'&#xFF38;' => 'X', '&#65336;' => 'X', /* Unicode FULLWIDTH LATIN CAPITAL LETTER X */
+			'&#xFF58;' => 'x', '&#65368;' => 'x', /* Unicode FULLWIDTH LATIN SMALL LETTER X */
+			'&#xFF30;' => 'P', '&#65328;' => 'P', /* Unicode FULLWIDTH LATIN CAPITAL LETTER P */
+			'&#xFF50;' => 'p', '&#65360;' => 'p', /* Unicode FULLWIDTH LATIN SMALL LETTER P */
+			'&#xFF32;' => 'R', '&#65330;' => 'R', /* Unicode FULLWIDTH LATIN CAPITAL LETTER R */
+			'&#xFF52;' => 'r', '&#65362;' => 'r', /* Unicode FULLWIDTH LATIN SMALL LETTER R */
+			'&#xFF33;' => 'S', '&#65331;' => 'S', /* Unicode FULLWIDTH LATIN CAPITAL LETTER S */
+			'&#xFF53;' => 's', '&#65363;' => 's', /* Unicode FULLWIDTH LATIN SMALL LETTER S */
+			'&#xFF29;' => 'I', '&#65321;' => 'I', /* Unicode FULLWIDTH LATIN CAPITAL LETTER I */
+			'&#xFF49;' => 'i', '&#65353;' => 'i', /* Unicode FULLWIDTH LATIN SMALL LETTER I */
+			'&#xFF2F;' => 'O', '&#65327;' => 'O', /* Unicode FULLWIDTH LATIN CAPITAL LETTER O */
+			'&#xFF4F;' => 'o', '&#65359;' => 'o', /* Unicode FULLWIDTH LATIN SMALL LETTER O */
+			'&#xFF2E;' => 'N', '&#65326;' => 'N', /* Unicode FULLWIDTH LATIN CAPITAL LETTER N */
+			'&#xFF4E;' => 'n', '&#65358;' => 'n', /* Unicode FULLWIDTH LATIN SMALL LETTER N */
+			'&#xFF2C;' => 'L', '&#65324;' => 'L', /* Unicode FULLWIDTH LATIN CAPITAL LETTER L */
+			'&#xFF4C;' => 'l', '&#65356;' => 'l', /* Unicode FULLWIDTH LATIN SMALL LETTER L */
+			'&#xFF35;' => 'U', '&#65333;' => 'U', /* Unicode FULLWIDTH LATIN CAPITAL LETTER U */
+			'&#xFF55;' => 'u', '&#65365;' => 'u', /* Unicode FULLWIDTH LATIN SMALL LETTER U */
+			'&#x207F;' => 'n', '&#8319;' => 'n', /* Unicode SUPERSCRIPT LATIN SMALL LETTER N */
+			"\xEF\xBC\xA5" => 'E', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER E */ // in unicode this is some Chinese char range
+			"\xEF\xBD\x85" => 'e', /* Shift JIS FULLWIDTH LATIN SMALL LETTER E */
+			"\xEF\xBC\xB8" => 'X', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER X */
+			"\xEF\xBD\x98" => 'x', /* Shift JIS FULLWIDTH LATIN SMALL LETTER X */
+			"\xEF\xBC\xB0" => 'P', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER P */
+			"\xEF\xBD\x90" => 'p', /* Shift JIS FULLWIDTH LATIN SMALL LETTER P */
+			"\xEF\xBC\xB2" => 'R', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER R */
+			"\xEF\xBD\x92" => 'r', /* Shift JIS FULLWIDTH LATIN SMALL LETTER R */
+			"\xEF\xBC\xB3" => 'S', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER S */
+			"\xEF\xBD\x93" => 's', /* Shift JIS FULLWIDTH LATIN SMALL LETTER S */
+			"\xEF\xBC\xA9" => 'I', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER I */
+			"\xEF\xBD\x89" => 'i', /* Shift JIS FULLWIDTH LATIN SMALL LETTER I */
+			"\xEF\xBC\xAF" => 'O', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER O */
+			"\xEF\xBD\x8F" => 'o', /* Shift JIS FULLWIDTH LATIN SMALL LETTER O */
+			"\xEF\xBC\xAE" => 'N', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER N */
+			"\xEF\xBD\x8E" => 'n', /* Shift JIS FULLWIDTH LATIN SMALL LETTER N */
+			"\xEF\xBC\xAC" => 'L', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER L */
+			"\xEF\xBD\x8C" => 'l', /* Shift JIS FULLWIDTH LATIN SMALL LETTER L */
+			"\xEF\xBC\xB5" => 'U', /* Shift JIS FULLWIDTH LATIN CAPITAL LETTER U */
+			"\xEF\xBD\x95" => 'u', /* Shift JIS FULLWIDTH LATIN SMALL LETTER U */
+			"\xE2\x81\xBF" => 'n', /* Shift JIS FULLWIDTH SUPERSCRIPT N */
+			"\xCA\x9F" => 'l', /* L UNICODE IPA Extension */
+			"\xCA\x80" => 'r', /* R UNICODE IPA Extension */
+			"\xC9\xB4" => 'n'  /* N UNICODE IPA Extension */
+		];
+		
+		// Remove NUL
+		.sanitizeHTMLdebug("Removing NUL characters...");
+		value = String.replace(value, "\0", "x ");
+	
+		// Translate all dangerous Unicode or Shift_JIS characters which are accepted by
+		// IE as regular characters.
+		.sanitizeHTMLdebug("Translate dangerous Unicode and Shift_JIS characters...");
+		dangerous_characters.map() using ( character, replacement ) {
+			value = Regexp.replaceAll(character, value, replacement);
+		};
+	
+		// Escapes are useful for special characters like "{}[]()'&. In other cases they are
+		// used for XSS.
+		.sanitizeHTMLdebug("Remove escapes...");
+		value = Regexp.replaceAll("(\\\\)([a-zA-Z]{1})", value, '\2');
+	
+		old_value = value;
+	
+		.sanitizeHTMLdebug("Checking for & and escapes...");
+		if( Regexp.match('&', value) or Regexp.match("\\\\", value) ) {
+			boolean match;
+			.sanitizeHTMLdebug("Found.");
+			do {
+				// Tobias 2013-01-23: The first entity translation does strange things with the text encoding of the content so it has temporarily been disabled.
+				//.sanitizeHTMLdebug("Translate first type of entities...");
+				//match = translate_entitites.invoke(value /* passed by reference */, '&#0*(\d+);*', false);
+				.sanitizeHTMLdebug("Translate second type of entities...");
+				match = ._translate_entitites(value /* passed by reference */, '&#x0*((\d|[a-fA-F])+);*', true);
+				.sanitizeHTMLdebug("Translate third type of entities...");
+				match = ._translate_entitites(value /* passed by reference */, '\\\\(\d+)', true);
+			} while ( match == true );
+		}
+	
+		return value;
+	}
+
+	function returnPath() {
+		return .returnPath('');
+	}
+
+	function returnPath( string extra ) {
+		string returnPath;
+		if( F('return-path.automatic') ) {
+			returnPath = 'return-path' + (extra
+				? '+' + extra
+				: '') + '@' + Network.getHostname();
+		} else if( F('return-path') ) {
+			returnPath = F('return-path');
+		}
+		if( returnPath )
+			return new Mail.Address(returnPath);
+		return null;
+	}
+
+	function mailOriginToAddress( object mailOrigin ) {
+		if( mailOrigin ) {
+			monitor {
+				object address = new Mail.Address( mailOrigin.emailAddress );
+				address.name = mailOrigin.name;
+				Console.println("");
+				return address;
+			} handle {
+				return null;
+			}
+		}
+		return null;
+	}
+
+	function expandReceiptTemplate( object errand, string text ) {
+		text = Regexp.replaceAll('{ERRANDID}', text, "${errand.id}");
+		if( errand.mail and errand.mail.from ) {
+			text = Regexp.replaceAll('\[name\]', text, (errand.mail.from.name ? errand.mail.from.name : errand.mail.from.emailAddress));
+			text = Regexp.replaceAll('\[email\]', text, errand.mail.from.emailAddress);
+		}
+		return text;
+	}
+
+	function createReceiptMessageContent( object errand, string body, string htmlBody, object logClosure ) {
+		object text = new Mail.MessagePart();
+
+		body = MailUtilities.expandReceiptTemplate(errand, body);
+		body = body + "\n" + errand.toHistoryString(false, false);
+		body = Regexp.replaceAll("\r\n", body, "\n");
+		body = Regexp.replaceAll("\r", body, "\n");
+		body = Regexp.replaceAll("\n", body, "\r\n");
+
+		text.encoding = Mail.Encoding.ENCQUOTEDPRINTABLE;
+		text.type = Mail.Mime.TYPETEXT;
+		text.subtype = "plain";
+		text.charset = "UTF-8";
+		text.content = Mail.Connection.bit8(body);
+
+		if( not htmlBody ) {
+			return text;
+		} else {
+			object content = new Mail.MessageMultiPart();
+			object alternative = new Mail.MessageMultiPart();
+			object html = new Mail.MessagePart();
+
+			string style;
+			string fontSize = (F('rich-text.default-font-size') ? F('rich-text.default-font-size') : '');
+			string fontFamily = (F('rich-text.default-font-family') ? F('rich-text.default-font-family') : '');
+
+			object img_regexp = new Regexp('src="[A-Za-z0-9\./:]*/admin/filearchive/preview?archive=[0-9]+/([0-9]+)"');
+			object cid_regexp = new Regexp('src="cid:([0-9]+)"');
+
+			array embeddedImages = [];
+
+			htmlBody = MailUtilities.expandReceiptTemplate(errand, htmlBody);
+			htmlBody = Regexp.replaceAll("\r\n", htmlBody, "\n");
+			htmlBody = Regexp.replaceAll("\r", htmlBody, "\n");
+			htmlBody = Regexp.replaceAll("\n", htmlBody, "\r\n");
+
+			htmlBody = img_regexp.replaceAll(htmlBody) using ( match ) {
+				return "src=\"cid:${match.capture(0)}\"";
+			};
+
+			if( fontSize )  style += "font-size:${fontSize};";
+			if( fontFamily) style += "font-family:${fontFamily};";
+
+			if( style )     style = ' style="{0}"'.expand(style);
+
+			html.encoding = Mail.Encoding.ENCQUOTEDPRINTABLE;
+			html.type = Mail.Mime.TYPETEXT;
+			html.subtype = "html";
+			html.charset = "UTF-8";
+			html.content = Mail.Connection.bit8('<html>' +
+				'<head>' +
+					'<meta http-equiv="Content-Type" content="text/html; charset=utf-8">' +
+				'</head>' +
+				'<body>' +
+					'<div{0}>'.expand(style) +
+						htmlBody + '<br />' +
+						Regexp.replaceAll("\n", errand.toHistoryString(false, false), '<br />') +
+					'</div>' +
+				'</body>' +
+			'</html>');
+
+			alternative.subtype = "alternative";
+			alternative.addPart(text);
+			alternative.addPart(html);
+
+			content.subtype = "related";
+			content.addPart(alternative);
+
+			cid_regexp.matchAll(htmlBody) using ( match ) {
+				string id = match.capture(0);
+				object archive = Workflow.AreaFileArchive.load(id.toNumber());
+				if( archive and not embeddedImages.keyExists(id) ) {
+					string folder = Workflow.AreaFileArchive.getImageArchiveArea(archive);
+					string filepath = (Config.CachePath - 'Cache/') + "Workflow/FileArchive/${folder}/" + archive.localName;
+					embeddedImages[id] = id;
+					if (Posix.stat(filepath) ) {
+						content.embedImage(id, filepath);
+					} else {
+						if( logClosure ) {
+							logClosure.invoke(" -----> ! Skipping embedded image '${archive.fileName}' (${filepath}) file not found on disk !");
+						}
+					}
+				}
+			};
+
+			return content;
+		}
 	}
 }
 
