@@ -4,7 +4,7 @@ uses "webframework/webframework";
 uses 'console';
 uses 'math';
 
-global {	
+global {
 	number failSafeTry = 1;
 }
 
@@ -52,7 +52,7 @@ namespace MailUtilities {
 		return .sendMessage(connection, MailUtilities.selectMailServer(), message, 1, logClosure);
 
 	function sendMessage( object connection, array server, object message, number try, object logClosure ) {
-		if( try > MailUtilities.failSafeTry() ) 
+		if( try > MailUtilities.failSafeTry() )
 			return false;
 
 		if( server ) {
@@ -166,21 +166,21 @@ namespace MailUtilities {
 		object content = new Mail.MessageMultiPart();
 		object text_content = new Mail.MessagePart();
 		object html_content = new Mail.MessagePart();
-		
+
 		text_content.type = Mail.Mime.TYPETEXT;
 		text_content.subtype = "plain";
 		text_content.content = text;
 		text_content.charset = "UTF-8";
-	
+
 		html_content.type = Mail.Mime.TYPETEXT;
 		html_content.subtype = "html";
 		html_content.content = "<html><body>$html $imgTrackingCode</body></html>";
 		html_content.charset = "UTF-8";
-		
+
 		content.subtype = "alternative";
 		content.addPart(text_content);
 		if ( html ) {content.addPart(html_content);}
-		
+
 		return content;
 	}
 
@@ -188,22 +188,22 @@ namespace MailUtilities {
 		monitor{
 			object message = new Mail.Message();
 			object connection = new Mail.Connection();
-			
-			
+
+
 			object to = new Mail.Address(toAddr);
 			object from = new Mail.Address(fromAddr);
 			from.name = fromName;
-			
+
 			message.header = new Mail.MessageHeader();
 			message.header.to.add( to );
 			message.header.from.add( from );
 			message.header.subject = subject;
 
-			
+
 			message = MailUtilities.setOutgoingHeader(message,fromAddr);
-			
+
 			message.content = MailUtilities.createTextHTMLContent(textVersion, htmlVersion,imgTrackingCode);
-		
+
 			return MailUtilities.sendMessage( connection, message );
 
 			}
@@ -212,14 +212,14 @@ namespace MailUtilities {
 			return false;
 		}
 	}
-	
+
 	object sanitizeHTMLdebugOutput;
 	function sanitizeHTMLdebug( string text ) {
 		if( .sanitizeHTMLdebugOutput ) {
 			.sanitizeHTMLdebugOutput.invoke(text);
 		}
 	}
-	
+
 	/**
 	 * @function sanitizeHTML
 	 * @declaration function sanitizeHTML( string html, string replace_image_url )
@@ -239,7 +239,7 @@ namespace MailUtilities {
 		//} while( html != old_html );
 		return html;
 	}
-	
+
 	function _sanitizeHTML( string html, string replace_image_url ) {
 		array remove_tags = [
 			// <base> specifies a default address or a default target for all links on a page.
@@ -274,7 +274,7 @@ namespace MailUtilities {
 			'form',
 			'input'
 		];
-	
+
 		array remove_tags_and_content = [
 			// <script> used to define a client-side script, such as a Javascript.
 			// And we absolutely do not want anyone to be able to execute evil Javascript in our application.
@@ -299,7 +299,7 @@ namespace MailUtilities {
 			'head',
 			'style'
 		];
-	
+
 		array remove_attributes = [
 			// Controls where the new document will be displayed when the user follows a link.
 			// We are going to override this and make sure links are displayed in a new window.
@@ -311,30 +311,30 @@ namespace MailUtilities {
 			'data(.*)',
 			'lowsrc(.*)'
 		];
-	
+
 		object evil_uri_regexp = new Regexp('((.*)(script|mocha|about):(.*))', 'i');
-	
+
 		//object tag_regexp = new Regexp('<[\s]*([a-z]+)([^>]*?)(/)?>', 'i');
 		object tag_regexp = new Regexp('<[\s]*([a-z]+)((?:\s+[a-z]+(?:\s*=\s*(?:".*?"|\'.*?\'|[^\'">\s]+))?)+\s*|\s*)/?>', 'i');
 		// Tobias 2011-12-09: Block <style> tags until we've implemented a good parser.
 		//object style_tag_regexp = new Regexp('<[\s]*style([^>]*)>(.*?)<[\s]*(/)[\s]*style[^>]*>', 'i');
-	
+
 		object attribute_type_1_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?"([^"]*)"', 'i'); // double quotes, href="http://www.cention.se"
 		object attribute_type_2_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?\'([^\']*)\'', 'i'); // Single quotes, href='http://www.cention.se'
 		object attribute_type_3_regexp = new Regexp('([a-z]+)(?:[\s])?=(?:[\s])?([^\'">\s]+)', 'i'); // no quotes, href=http://www.cention.se
 
 		// Tobias 2015-08-13: I'm not sure where this comment belongs
 		// Modification for: style='font-family: "Verdana", "Sans sarif"'
-	
+
 		// If you are thinking about combining the attribute regular expressions into one please remember this.
 		// Example: name="va'lue"
 		// Should produce:
 		//  capture 0: name
-		//  capture 1: va'lue 
-	
-		
+		//  capture 1: va'lue
+
+
 		object control_characters_regexp = null;
-		
+
 		object fix_style = closure( string style ) {
 			object import_regexp = new Regexp('^\s*(@import.*)$', 'mi');
 			object url_regexp = new Regexp('url\s*\([\'"]*(.+)[\'"]*\)', 'si');
@@ -351,18 +351,18 @@ namespace MailUtilities {
 			};
 			return style;
 		};
-	
+
 		array control_characters = [];
 		for( number i = 0; i <= 37; i++ )
 			control_characters[] = i;
 		for( number i = 200; i <= 377; i ++ )
 			control_characters[] = i;
-	
+
 		control_characters_regexp = new Regexp("\\\\(${control_characters.join('|')})");
 
 		// Remove DOCTYPE
 		html = Regexp.replaceAll("<!DOCTYPE[^>]*>", html, "");
-	
+
 		// Remove Netscape's Javascript entitites like: &{alert('boo')};
 		.sanitizeHTMLdebug("Removing Netscape's Javascript entitites...");
 		html = Regexp.replaceAll('&{.*?};', html, '');
@@ -372,7 +372,7 @@ namespace MailUtilities {
 			object start_tag_r = new Regexp("<[\s]*${tag}[^>]*>", "i");
 			object tag_r = new Regexp("<[\s]*(/)?[\s]*${tag}[^>]*>", "i");
 			object start_tag_match = null;
-		
+
 			.sanitizeHTMLdebug("Searching for start tag (${tag})...");
 			while( (start_tag_match = start_tag_r.match(html)) ) {
 				string  part = html[start_tag_match.end()..];
@@ -380,16 +380,16 @@ namespace MailUtilities {
 				number  tag_end = 0;
 				boolean tag_end_found = false;
 				object  tag_match = null;
-			
+
 				.sanitizeHTMLdebug("Searching for start or end tag (${tag})...");
 				while( (tag_match = tag_r.match(part)) ) {
 					array captures = tag_match.captures();
-				
+
 					.sanitizeHTMLdebug("Match: ${tag_match.match()}");
 					.sanitizeHTMLdebug("Captures: ${captures}");
-				
+
 					tag_end += tag_match.end();
-				
+
 					.sanitizeHTMLdebug("Checking if an end tag has been found (${tag})...");
 					if( captures.size() > 0 and captures[0] == '/' ) {
 						.sanitizeHTMLdebug("End tag found (${tag}).");
@@ -419,14 +419,14 @@ namespace MailUtilities {
 					} else {
 						start_tags++;
 					}
-				
+
 					if( part.length() > tag_match.end() ) {
 						part = part[tag_match.end()..];
 					} else {
 						break;
 					}
 				}
-			
+
 				if( not tag_end_found ) {
 					number start = start_tag_match.start() - 1;
 					html = html[..start];
@@ -434,27 +434,27 @@ namespace MailUtilities {
 				}
 			}
 		};
-	
+
 		.sanitizeHTMLdebug("Removing tags...");
 		remove_tags.each() using ( tag ) {
 			object r = new Regexp("<[\s]*(/)?[\s]*${tag}[^>]*>", "i");
 			.sanitizeHTMLdebug("Removing tags {${tag}}...");
 			html = r.replaceAll(html, "");
 		};
-	
+
 		.sanitizeHTMLdebug("Walking tags...");
 		html = tag_regexp.replaceAll(html) using ( tag_match ) {
 			string tag;
 			string end;
 			array  attributes = [];
 			array  safe_attributes = [];
-		
+
 			tag = tag_match.capture(0).toLower();;
 			end = tag_match.capture(2).toLower();
-			
+
 			.sanitizeHTMLdebug("Tag: ${tag}");
 			.sanitizeHTMLdebug("End: ${end}");
-		
+
 			.sanitizeHTMLdebug("Matching attributes (first way)...");
 			attributes = attributes.append(attribute_type_1_regexp.matchAll(tag_match.capture(1)));
 			.sanitizeHTMLdebug("Matching attributes (second way)...");
@@ -466,12 +466,12 @@ namespace MailUtilities {
 			attributes.each() using ( attribute_match ) {
 				string name = attribute_match.capture(0).toLower();
 				string value = attribute_match.capture(1);
-			
+
 				boolean skip_attribute = false;
-			
+
 				.sanitizeHTMLdebug("Name: ${name}");
 				.sanitizeHTMLdebug("Value: ${value}");
-			
+
 				.sanitizeHTMLdebug("Checking if attribute (${name}) is in list of attributes that should be removed...");
 				remove_attributes.each() using ( remove_attribute ) {
 					object r = new Regexp(remove_attribute, 'i');
@@ -481,13 +481,13 @@ namespace MailUtilities {
 						return false; // break
 					}
 				};
-			
+
 				if( not skip_attribute ) {
 					boolean attribute_value_is_safe = true;
-				
+
 					string old_value = value;
 					value = ._fix_attribute_value(value);
-				
+
 					switch( name ) {
 						case 'href':
 						case 'action':
@@ -518,20 +518,20 @@ namespace MailUtilities {
 							}
 							break;
 					}
-				
+
 					if( attribute_value_is_safe ) {
 						safe_attributes[] = [ 'name' => name, 'value' => String.replace( value,'"',"&#34;") ];
-						//Style attribute is getting started from double quote so inside double 
-						// quote should be needed this &#34; means double quote.  
+						//Style attribute is getting started from double quote so inside double
+						// quote should be needed this &#34; means double quote.
 					}
 				}
 			};
-		
+
 			// Make sure links are opened in an a new window.
 			if( tag == 'a' ) {
 				safe_attributes[] = [ 'name' => 'target', 'value' => '_blank' ];
 			}
-		
+
 			return '<{0:tag}{1:attributes}{2:end}>'.expand(
 				tag,
 				(safe_attributes ? ' ' + safe_attributes.join(' ') using ( attr ) {
@@ -539,9 +539,9 @@ namespace MailUtilities {
 				} : ''),
 				end);
 		};
-	
+
 		/* Tobias 2011-12-09:
-		 * We now remove <style> tags instead of fixing them until we've 
+		 * We now remove <style> tags instead of fixing them until we've
 		 * implemented a good parser that can fix them.
 		html = style_tag_regexp.replaceAll(html) using ( match ) {
 			string attributes = match.capture(0);
@@ -553,7 +553,7 @@ namespace MailUtilities {
 			return '<style {0:attributes}>{1:content}</style>'.expand(attributes, content);
 		};
 		*/
-	
+
 		return html;
 	}
 
@@ -569,7 +569,7 @@ namespace MailUtilities {
 
 	function _fix_attribute_value(string value){
 		string old_value = value;
-		
+
 		array dangerous_characters = [
 			'&#x029F;' => 'l', '&#0671;' => 'l', /* L UNICODE IPA Extension */
 			'&#x0280;' => 'r', '&#0640;' => 'r', /* R UNICODE IPA Extension */
@@ -620,25 +620,25 @@ namespace MailUtilities {
 			"\xCA\x80" => 'r', /* R UNICODE IPA Extension */
 			"\xC9\xB4" => 'n'  /* N UNICODE IPA Extension */
 		];
-		
+
 		// Remove NUL
 		.sanitizeHTMLdebug("Removing NUL characters...");
 		value = String.replace(value, "\0", "x ");
-	
+
 		// Translate all dangerous Unicode or Shift_JIS characters which are accepted by
 		// IE as regular characters.
 		.sanitizeHTMLdebug("Translate dangerous Unicode and Shift_JIS characters...");
 		dangerous_characters.map() using ( character, replacement ) {
 			value = Regexp.replaceAll(character, value, replacement);
 		};
-	
+
 		// Escapes are useful for special characters like "{}[]()'&. In other cases they are
 		// used for XSS.
 		.sanitizeHTMLdebug("Remove escapes...");
 		value = Regexp.replaceAll("(\\\\)([a-zA-Z]{1})", value, '\2');
-	
+
 		old_value = value;
-	
+
 		.sanitizeHTMLdebug("Checking for & and escapes...");
 		if( Regexp.match('&', value) or Regexp.match("\\\\", value) ) {
 			boolean match;
@@ -653,7 +653,7 @@ namespace MailUtilities {
 				match = ._translate_entitites(value /* passed by reference */, '\\\\(\d+)', true);
 			} while ( match == true );
 		}
-	
+
 		return value;
 	}
 
@@ -816,9 +816,9 @@ namespace modifies String {
 		object attributeRegexp = new Regexp('(background|src)="([^"]*)"', 'i');
 		object cssUrlRegexp = new Regexp('url\s*\([\'"]*(.+?)[\'"]*\)', 'si');
 		object cidRegexp = new Regexp('^cid:[<]?([^">]+)[>]?');
-		
+
 		array embeddedImages = [];
-		
+
 		object expandImage = closure( string value ) {
 			object cidMatch = cidRegexp.match(value);
 			if( cidMatch ) {
@@ -845,13 +845,13 @@ namespace modifies String {
 			}
 			return value;
 		};
-		
+
 		o.mail.attachments.each() using ( attachment ) {
 			if( attachment.contentID ) {
 				embeddedImages[attachment.contentID] = attachment;
 			}
 		};
-		
+
 		if( sanitizeHTML ) {
 			html = MailUtilities.sanitizeHTML(html, replacementImage);
 		}
@@ -861,13 +861,12 @@ namespace modifies String {
 			string value = expandImage.invoke(match.capture(1));
 			return "${name}=\"${value}\"";
 		};
-		
+
 		html = cssUrlRegexp.replaceAll(html) using ( match ) {
 			string url = expandImage.invoke(match.capture(0));
 			return "url(${url})";
 		};
-		
+
 		return html;
 	}
 }
-
