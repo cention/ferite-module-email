@@ -695,6 +695,9 @@ namespace MailUtilities {
 			text = Regexp.replaceAll('\[name\]', text, (errand.mail.from.name ? errand.mail.from.name : errand.mail.from.emailAddress));
 			text = Regexp.replaceAll('\[email\]', text, errand.mail.from.emailAddress);
 		}
+		if( errand.owner ) {
+			text = Regexp.replaceAll('\[signature name\]', text, (errand.owner.signatureName ? errand.owner.signatureName : errand.owner.username));
+		}
 		return text;
 	}
 
