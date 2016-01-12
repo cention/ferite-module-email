@@ -826,6 +826,8 @@ namespace modifies String {
 			object cidMatch = cidRegexp.match(value);
 			if( cidMatch ) {
 				string contentID = '<' + cidMatch.capture(0) + '>';
+				if( not embeddedImages.keyExists(contentID) )
+					contentID = cidMatch.capture(0);
 				if( embeddedImages.keyExists(contentID) ) {
 					object attachment = embeddedImages[contentID];
 
